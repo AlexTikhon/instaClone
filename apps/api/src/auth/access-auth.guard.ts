@@ -46,6 +46,7 @@ export class AccessAuthGuard implements CanActivate {
     (request as AuthenticatedRequest).identity = {
       id: session.identity.id,
       email: session.identity.email,
+      emailVerified: session.identity.emailVerifiedAt !== null,
       profile: session.identity.profile,
       sessionId: session.id,
     };

@@ -29,4 +29,27 @@ describe('server environment', () => {
   it('fails fast when a required secret is absent', () => {
     expect(() => parseApiEnvironment({ ...validEnvironment, S3_SECRET_KEY: undefined })).toThrow();
   });
+
+  it('rejects insecure cookies and development secrets in production', () => {
+    expect(() =>
+      parseApiEnvironment({
+        ...validEnvironment,
+        NODE_ENV: 'production',
+        AUTH_COOKIE_SECURE: 'false',
+        WEB_APP_URL: 'http://example.com',
+      }),
+    ).toThrow();
+  });
+
+  it('accepts distinct managed secrets and secure production URLs', () => {
+    const parsed = parseApiEnvironment({
+      ...validEnvironment,
+      NODE_ENV: 'production',
+      AUTH_COOKIE_SECURE: 'true',
+      AUTH_ACCESS_TOKEN_SECRET: 'A'.repeat(64),
+      AUTH_REFRESH_TOKEN_PEPPER: 'B'.repeat(64),
+      WEB_APP_URL: 'https://app.example.com',
+    });
+    expect(parsed.AUTH_COOKIE_SECURE).toBe(true);
+  });
 });

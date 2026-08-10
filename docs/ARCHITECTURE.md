@@ -3,7 +3,8 @@
 ## Purpose and current scope
 
 The application is an educational production-engineering system. Phase 0 established operational
-and architectural foundations. Phase 1 adds the first product boundary: authentication and profiles.
+and architectural foundations. Phase 1 adds the first product boundary: authentication and profiles;
+Phase 1.1 hardens that boundary with recovery, verification, session controls, and audit history.
 The system remains a modular monolith with a separately scalable worker process.
 
 ## Runtime view

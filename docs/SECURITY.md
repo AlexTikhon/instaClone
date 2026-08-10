@@ -41,9 +41,24 @@ type, size, and object-key ownership. Finalization must verify the stored object
 client metadata. Media workers decode content defensively, bound FFmpeg resources, and write derived
 variants to separate keys. Object buckets remain non-public; delivery uses controlled URLs/CDN policy.
 
+## Account security controls (Phase 1.1)
+
+Email-verification and password-reset links contain random one-time tokens. Only purpose-separated
+HMAC hashes are stored, tokens expire, replacement requests invalidate earlier unused tokens, and
+password reset revokes every active session. Password changes verify the current Argon2id credential
+and also revoke all sessions.
+
+Users can inspect active sessions with creation, last-use, IP, and user-agent context, revoke an
+individual owned session, or revoke all sessions. Authentication lifecycle outcomes are retained as
+append-only audit events. A periodic cleanup removes expired or revoked sessions, stale action
+tokens, and audit events past the configured retention period.
+
+Registration, login, refresh, resend, and recovery are rate-limited with Redis-backed fixed windows.
+Production startup rejects insecure cookies, weak placeholder authentication secrets, reused signing
+and hashing secrets, and non-HTTPS public web URLs. SMTP carries verification and recovery mail;
+Mailpit provides a local-only inbox.
+
 ## Outstanding hardening
 
-Rate limiting, email verification, password reset/change, MFA, session-management UI, audit events,
-content security policy tuning, and abuse controls remain outstanding. Authentication endpoints
-should not be exposed to the internet until rate limiting and managed production secrets are in
-place.
+MFA, session-management UI, content security policy tuning, adaptive/breached-password checks, and
+broader abuse controls remain outstanding.

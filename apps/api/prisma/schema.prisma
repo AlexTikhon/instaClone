@@ -8,14 +8,18 @@ datasource db {
 }
 
 model User {
-  id         String          @id @default(uuid()) @db.Uuid
-  email      String          @unique @db.VarChar(320)
-  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime        @updatedAt @db.Timestamptz(3)
-  disabledAt DateTime?       @db.Timestamptz(3)
-  credential UserCredential?
-  profile    Profile?
-  sessions   AuthSession[]
+  id                      String                   @id @default(uuid()) @db.Uuid
+  email                   String                   @unique @db.VarChar(320)
+  emailVerifiedAt         DateTime?                @db.Timestamptz(3)
+  createdAt               DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                 @updatedAt @db.Timestamptz(3)
+  disabledAt              DateTime?                @db.Timestamptz(3)
+  credential              UserCredential?
+  profile                 Profile?
+  sessions                AuthSession[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  auditEvents             AuthAuditEvent[]
 
   @@map("users")
 }
@@ -52,6 +56,8 @@ model AuthSession {
   lastUsedAt    DateTime             @default(now()) @db.Timestamptz(3)
   revokedAt     DateTime?            @db.Timestamptz(3)
   revokeReason  SessionRevokeReason?
+  ipAddress     String?              @db.VarChar(45)
+  userAgent     String?              @db.VarChar(512)
   createdAt     DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime             @updatedAt @db.Timestamptz(3)
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -60,6 +66,50 @@ model AuthSession {
   @@index([userId, revokedAt])
   @@index([expiresAt])
   @@map("auth_sessions")
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model AuthAuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  sessionId  String?  @db.Uuid
+  eventType  String   @db.VarChar(64)
+  outcome    String   @db.VarChar(16)
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(512)
+  occurredAt DateTime @default(now()) @db.Timestamptz(3)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([occurredAt])
+  @@map("auth_audit_events")
 }
 
 model RefreshToken {

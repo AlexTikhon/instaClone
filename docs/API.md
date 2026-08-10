@@ -17,20 +17,32 @@
 
 ## Authentication and profile endpoints
 
-| Method | Path                     | Auth / CSRF          | Purpose                              |
-| ------ | ------------------------ | -------------------- | ------------------------------------ |
-| GET    | `/api/v1/auth/csrf`      | none                 | Issue a signed double-submit token   |
-| POST   | `/api/v1/auth/register`  | CSRF                 | Create user, credential, and profile |
-| POST   | `/api/v1/auth/login`     | CSRF                 | Create a new device session          |
-| POST   | `/api/v1/auth/refresh`   | refresh cookie, CSRF | Rotate refresh and access cookies    |
-| POST   | `/api/v1/auth/logout`    | refresh cookie, CSRF | Revoke and clear the session         |
-| GET    | `/api/v1/auth/me`        | access cookie        | Read the authenticated identity      |
-| PATCH  | `/api/v1/profiles/me`    | access cookie, CSRF  | Update only the caller's profile     |
-| GET    | `/api/v1/profiles/:name` | none                 | Read a public profile                |
+| Method | Path                           | Auth / CSRF          | Purpose                              |
+| ------ | ------------------------------ | -------------------- | ------------------------------------ |
+| GET    | `/api/v1/auth/csrf`            | none                 | Issue a signed double-submit token   |
+| POST   | `/api/v1/auth/register`        | CSRF                 | Create user, credential, and profile |
+| POST   | `/api/v1/auth/login`           | CSRF                 | Create a new device session          |
+| POST   | `/api/v1/auth/refresh`         | refresh cookie, CSRF | Rotate refresh and access cookies    |
+| POST   | `/api/v1/auth/logout`          | refresh cookie, CSRF | Revoke and clear the session         |
+| GET    | `/api/v1/auth/me`              | access cookie        | Read the authenticated identity      |
+| POST   | `/api/v1/auth/email/verify`    | CSRF                 | Consume a verification token         |
+| POST   | `/api/v1/auth/email/resend`    | access cookie, CSRF  | Send a replacement verification link |
+| POST   | `/api/v1/auth/password/forgot` | CSRF                 | Request a password reset             |
+| POST   | `/api/v1/auth/password/reset`  | CSRF                 | Consume a password-reset token       |
+| POST   | `/api/v1/auth/password/change` | access cookie, CSRF  | Change password and revoke sessions  |
+| GET    | `/api/v1/auth/sessions`        | access cookie        | List active device sessions          |
+| DELETE | `/api/v1/auth/sessions/:id`    | access cookie, CSRF  | Revoke one owned session             |
+| DELETE | `/api/v1/auth/sessions`        | access cookie, CSRF  | Revoke all owned sessions            |
+| PATCH  | `/api/v1/profiles/me`          | access cookie, CSRF  | Update only the caller's profile     |
+| GET    | `/api/v1/profiles/:name`       | none                 | Read a public profile                |
 
 Registration and profile bodies use strict schemas; unknown fields are rejected. Access and refresh
 tokens are never returned in JSON. Browser clients send credentials and the `X-CSRF-Token` header on
 mutations.
+
+Registration, login, refresh, verification resend, and password-recovery routes use Redis-backed
+fixed-window limits. Password-forgot always returns the same accepted response, whether or not the
+email belongs to an account.
 
 All responses include `X-Request-ID`. A valid incoming value is propagated; invalid or missing values
 are replaced.

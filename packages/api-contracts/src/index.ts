@@ -12,19 +12,33 @@ export type {
 } from './platform-contracts';
 export {
   authenticatedUserSchema,
+  acceptedResponseSchema,
+  authSessionSchema,
+  authSessionsResponseSchema,
   authResponseSchema,
+  changePasswordInputSchema,
   csrfResponseSchema,
   loginInputSchema,
+  forgotPasswordInputSchema,
   profileSchema,
   registerInputSchema,
+  resetPasswordInputSchema,
   updateProfileInputSchema,
+  verifyEmailInputSchema,
 } from './identity-contracts';
 export type {
+  AcceptedResponse,
   AuthenticatedUser,
+  AuthSession,
+  AuthSessionsResponse,
   AuthResponse,
   CsrfResponse,
+  ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   Profile,
   RegisterInput,
+  ResetPasswordInput,
   UpdateProfileInput,
+  VerifyEmailInput,
 } from './identity-contracts';

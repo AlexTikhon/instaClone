@@ -20,6 +20,8 @@ export class AuthTokensService {
   private readonly pepper: string;
   private readonly accessTtlSeconds: number;
   private readonly refreshTtlSeconds: number;
+  private readonly emailVerificationTtlSeconds: number;
+  private readonly passwordResetTtlSeconds: number;
   private readonly secureCookies: boolean;
 
   constructor(config: ConfigService<ApiEnvironment, true>) {
@@ -27,11 +29,31 @@ export class AuthTokensService {
     this.pepper = config.get('AUTH_REFRESH_TOKEN_PEPPER', { infer: true });
     this.accessTtlSeconds = config.get('AUTH_ACCESS_TTL_SECONDS', { infer: true });
     this.refreshTtlSeconds = config.get('AUTH_REFRESH_TTL_SECONDS', { infer: true });
+    this.emailVerificationTtlSeconds = config.get('AUTH_EMAIL_VERIFICATION_TTL_SECONDS', {
+      infer: true,
+    });
+    this.passwordResetTtlSeconds = config.get('AUTH_PASSWORD_RESET_TTL_SECONDS', { infer: true });
     this.secureCookies = config.get('AUTH_COOKIE_SECURE', { infer: true });
   }
 
   get refreshLifetimeMs(): number {
     return this.refreshTtlSeconds * 1_000;
+  }
+
+  get emailVerificationLifetimeMs(): number {
+    return this.emailVerificationTtlSeconds * 1_000;
+  }
+
+  get passwordResetLifetimeMs(): number {
+    return this.passwordResetTtlSeconds * 1_000;
+  }
+
+  createActionToken(): string {
+    return randomBytes(32).toString('base64url');
+  }
+
+  hashActionToken(purpose: 'email-verification' | 'password-reset', token: string): string {
+    return createHmac('sha256', this.pepper).update(`${purpose}:${token}`).digest('hex');
   }
 
   createAccessToken(userId: string, sessionId: string): string {

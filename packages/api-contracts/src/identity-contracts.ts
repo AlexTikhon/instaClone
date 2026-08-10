@@ -14,6 +14,7 @@ export const profileSchema = z.object({
 export const authenticatedUserSchema = z.object({
   id: z.uuid(),
   email: z.email(),
+  emailVerified: z.boolean(),
   profile: profileSchema,
 });
 
@@ -47,6 +48,44 @@ export const loginInputSchema = z.strictObject({
   password: z.string().min(1).max(128),
 });
 
+export const verifyEmailInputSchema = z.strictObject({ token: z.string().min(32).max(512) });
+
+export const forgotPasswordInputSchema = z.strictObject({
+  email: z
+    .email()
+    .max(320)
+    .transform((value) => value.trim().toLowerCase()),
+});
+
+export const resetPasswordInputSchema = z.strictObject({
+  token: z.string().min(32).max(512),
+  newPassword: z.string().min(12).max(128),
+});
+
+export const changePasswordInputSchema = z
+  .strictObject({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: z.string().min(12).max(128),
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    message: 'New password must differ from the current password',
+    path: ['newPassword'],
+  });
+
+export const acceptedResponseSchema = z.object({ accepted: z.literal(true) });
+
+export const authSessionSchema = z.object({
+  id: z.uuid(),
+  current: z.boolean(),
+  createdAt: z.iso.datetime(),
+  lastUsedAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
+});
+
+export const authSessionsResponseSchema = z.object({ sessions: z.array(authSessionSchema) });
+
 export const updateProfileInputSchema = z
   .strictObject({
     username: z.string().trim().toLowerCase().min(3).max(30).regex(usernamePattern).optional(),
@@ -63,4 +102,11 @@ export type AuthResponse = z.infer<typeof authResponseSchema>;
 export type CsrfResponse = z.infer<typeof csrfResponseSchema>;
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailInputSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
+export type AcceptedResponse = z.infer<typeof acceptedResponseSchema>;
+export type AuthSession = z.infer<typeof authSessionSchema>;
+export type AuthSessionsResponse = z.infer<typeof authSessionsResponseSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;

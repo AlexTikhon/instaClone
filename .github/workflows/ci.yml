@@ -43,5 +43,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://instaclone:instaclone@localhost:5432/instaclone?schema=public
       - run: pnpm test
+        env:
+          RUN_POSTGRES_INTEGRATION: 'true'
+          TEST_DATABASE_URL: postgresql://instaclone:instaclone@localhost:5432/instaclone?schema=public
       - run: pnpm build
       - run: docker compose config --quiet

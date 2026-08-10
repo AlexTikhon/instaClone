@@ -12,6 +12,11 @@ on user/session deletion; token history is retained for the session lifetime so 
 can be detected. Email and username are normalized by the application and protected by database
 unique constraints.
 
+Phase 1.1 adds one-time email-verification and password-reset token tables, device context on
+sessions, and authentication audit events. Verification and reset transitions consume tokens with
+the associated account update in a transaction. Password changes and resets revoke active sessions
+in the same transaction. Expiration and retention indexes support periodic cleanup.
+
 ## Modelling conventions
 
 Future tables should use:

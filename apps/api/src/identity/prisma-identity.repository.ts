@@ -5,10 +5,14 @@ import type { Profile } from '@instaclone/api-contracts';
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { IdentityConflictError, type IdentityRepository } from './identity.repository';
 import type {
+  AuditEventInput,
+  CleanupResult,
   CreateIdentityInput,
   IdentityRecord,
   RotationResult,
   SessionRecord,
+  SessionMetadata,
+  SessionSummary,
   UpdateProfileData,
 } from './identity.types';
 
@@ -20,6 +24,7 @@ const identitySelection = {
 interface SelectedUser {
   id: string;
   email: string;
+  emailVerifiedAt: Date | null;
   disabledAt: Date | null;
   credential?: { passwordHash: string } | null;
   profile?: IdentityRecord['profile'] | null;
@@ -39,6 +44,7 @@ const toIdentity = (user: SelectedUser | null): IdentityRecord | null => {
   return {
     id: user.id,
     email: user.email,
+    emailVerifiedAt: user.emailVerifiedAt,
     disabledAt: user.disabledAt,
     passwordHash: user.credential.passwordHash,
     profile: toProfile(user.profile),
@@ -64,6 +70,8 @@ export class PrismaIdentityRepository implements IdentityRepository {
             create: {
               id: input.sessionId,
               expiresAt: input.sessionExpiresAt,
+              ipAddress: input.sessionMetadata.ipAddress,
+              userAgent: input.sessionMetadata.userAgent,
               refreshTokens: {
                 create: {
                   tokenHash: input.refreshTokenHash,
@@ -108,6 +116,10 @@ export class PrismaIdentityRepository implements IdentityRepository {
       userId: session.userId,
       expiresAt: session.expiresAt,
       revokedAt: session.revokedAt,
+      createdAt: session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+      ipAddress: session.ipAddress,
+      userAgent: session.userAgent,
       identity,
     };
   }
@@ -117,12 +129,15 @@ export class PrismaIdentityRepository implements IdentityRepository {
     userId: string,
     refreshTokenHash: string,
     expiresAt: Date,
+    metadata: SessionMetadata,
   ): Promise<void> {
     await this.prisma.authSession.create({
       data: {
         id: sessionId,
         userId,
         expiresAt,
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
         refreshTokens: { create: { tokenHash: refreshTokenHash, expiresAt } },
       },
     });
@@ -180,6 +195,143 @@ export class PrismaIdentityRepository implements IdentityRepository {
       where: { id: sessionId, revokedAt: null },
       data: { revokedAt: new Date(), revokeReason: reason },
     });
+  }
+
+  async revokeOwnedSession(userId: string, sessionId: string): Promise<boolean> {
+    const result = await this.prisma.authSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date(), revokeReason: 'SECURITY_EVENT' },
+    });
+    return result.count === 1;
+  }
+
+  async revokeAllSessions(
+    userId: string,
+    reason: 'PASSWORD_CHANGE' | 'SECURITY_EVENT',
+  ): Promise<number> {
+    const result = await this.prisma.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date(), revokeReason: reason },
+    });
+    return result.count;
+  }
+
+  async listSessions(userId: string, now: Date): Promise<SessionSummary[]> {
+    return this.prisma.authSession.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: now } },
+      orderBy: { lastUsedAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        revokedAt: true,
+        ipAddress: true,
+        userAgent: true,
+      },
+    });
+  }
+
+  async createEmailVerificationToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.emailVerificationToken.deleteMany({
+        where: { userId, consumedAt: null },
+      }),
+      this.prisma.emailVerificationToken.create({ data: { userId, tokenHash, expiresAt } }),
+    ]);
+  }
+
+  async consumeEmailVerificationToken(tokenHash: string, now: Date): Promise<string | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const token = await transaction.emailVerificationToken.findUnique({ where: { tokenHash } });
+      if (!token || token.consumedAt || token.expiresAt <= now) return null;
+      const consumed = await transaction.emailVerificationToken.updateMany({
+        where: { id: token.id, consumedAt: null, expiresAt: { gt: now } },
+        data: { consumedAt: now },
+      });
+      if (consumed.count !== 1) return null;
+      await transaction.user.update({
+        where: { id: token.userId },
+        data: { emailVerifiedAt: now },
+      });
+      return token.userId;
+    });
+  }
+
+  async createPasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId, consumedAt: null } }),
+      this.prisma.passwordResetToken.create({ data: { userId, tokenHash, expiresAt } }),
+    ]);
+  }
+
+  async resetPassword(tokenHash: string, passwordHash: string, now: Date): Promise<string | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const token = await transaction.passwordResetToken.findUnique({ where: { tokenHash } });
+      if (!token || token.consumedAt || token.expiresAt <= now) return null;
+      const consumed = await transaction.passwordResetToken.updateMany({
+        where: { id: token.id, consumedAt: null, expiresAt: { gt: now } },
+        data: { consumedAt: now },
+      });
+      if (consumed.count !== 1) return null;
+      await transaction.userCredential.update({
+        where: { userId: token.userId },
+        data: { passwordHash, passwordChangedAt: now },
+      });
+      await transaction.authSession.updateMany({
+        where: { userId: token.userId, revokedAt: null },
+        data: { revokedAt: now, revokeReason: 'PASSWORD_CHANGE' },
+      });
+      return token.userId;
+    });
+  }
+
+  async changePassword(userId: string, passwordHash: string, now: Date): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.userCredential.update({
+        where: { userId },
+        data: { passwordHash, passwordChangedAt: now },
+      }),
+      this.prisma.authSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now, revokeReason: 'PASSWORD_CHANGE' },
+      }),
+    ]);
+  }
+
+  async recordAuditEvent(event: AuditEventInput): Promise<void> {
+    await this.prisma.authAuditEvent.create({ data: event });
+  }
+
+  async cleanupExpiredAuthState(now: Date, auditBefore: Date): Promise<CleanupResult> {
+    const [sessions, verificationTokens, resetTokens, auditEvents] = await this.prisma.$transaction(
+      [
+        this.prisma.authSession.deleteMany({
+          where: { OR: [{ expiresAt: { lt: now } }, { revokedAt: { lt: now } }] },
+        }),
+        this.prisma.emailVerificationToken.deleteMany({
+          where: { OR: [{ expiresAt: { lt: now } }, { consumedAt: { not: null } }] },
+        }),
+        this.prisma.passwordResetToken.deleteMany({
+          where: { OR: [{ expiresAt: { lt: now } }, { consumedAt: { not: null } }] },
+        }),
+        this.prisma.authAuditEvent.deleteMany({ where: { occurredAt: { lt: auditBefore } } }),
+      ],
+    );
+    return {
+      sessions: sessions.count,
+      verificationTokens: verificationTokens.count,
+      resetTokens: resetTokens.count,
+      auditEvents: auditEvents.count,
+    };
   }
 
   async findProfileByUsername(username: string): Promise<IdentityRecord['profile'] | null> {

@@ -63,18 +63,28 @@ services:
         mc mb --ignore-existing local/instaclone-media
     restart: 'no'
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '${MAILPIT_SMTP_HOST_PORT:-1025}:1025'
+      - '${MAILPIT_UI_HOST_PORT:-8025}:8025'
+    restart: unless-stopped
+
   api:
     build:
       context: .
       dockerfile: infra/docker/api.Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       LOG_LEVEL: info
       API_PORT: 4000
       API_CORS_ORIGINS: http://localhost:${WEB_HOST_PORT:-3000}
       AUTH_ACCESS_TOKEN_SECRET: local-access-secret-change-me-at-least-32-characters
       AUTH_REFRESH_TOKEN_PEPPER: local-refresh-pepper-change-me-at-least-32-characters
       AUTH_COOKIE_SECURE: 'false'
+      AUTH_SMTP_URL: smtp://mailpit:1025
+      AUTH_EMAIL_FROM: no-reply@instaclone.local
+      WEB_APP_URL: http://localhost:${WEB_HOST_PORT:-3000}
       DATABASE_URL: postgresql://instaclone:instaclone@postgres:5432/instaclone?schema=public
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://minio:9000
@@ -92,6 +102,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4000/api/v1/health/ready']
       interval: 10s
@@ -104,7 +116,7 @@ services:
       context: .
       dockerfile: infra/docker/workers.Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       LOG_LEVEL: info
       REDIS_URL: redis://redis:6379
       WORKER_CONCURRENCY: 4
