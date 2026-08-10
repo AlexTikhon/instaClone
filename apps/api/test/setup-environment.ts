@@ -8,4 +8,6 @@ Object.assign(process.env, {
   S3_ACCESS_KEY: 'test-access',
   S3_SECRET_KEY: 'test-secret',
   S3_BUCKET: 'test-media',
+  AUTH_ACCESS_TOKEN_SECRET: 'test-access-token-secret-at-least-32-characters',
+  AUTH_REFRESH_TOKEN_PEPPER: 'test-refresh-token-pepper-at-least-32-characters',
 });

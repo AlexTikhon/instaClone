@@ -7,5 +7,79 @@ datasource db {
   provider = "postgresql"
 }
 
-// Phase 0 intentionally contains no product tables. The first migration belongs
-// to Phase 1, when identity ownership and deletion semantics can be reviewed.
+model User {
+  id         String          @id @default(uuid()) @db.Uuid
+  email      String          @unique @db.VarChar(320)
+  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime        @updatedAt @db.Timestamptz(3)
+  disabledAt DateTime?       @db.Timestamptz(3)
+  credential UserCredential?
+  profile    Profile?
+  sessions   AuthSession[]
+
+  @@map("users")
+}
+
+model UserCredential {
+  userId            String   @id @db.Uuid
+  passwordHash      String   @db.VarChar(255)
+  passwordChangedAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+model Profile {
+  userId      String   @id @db.Uuid
+  username    String   @unique @db.VarChar(30)
+  displayName String   @db.VarChar(60)
+  bio         String   @default("") @db.VarChar(160)
+  websiteUrl  String?  @db.VarChar(2048)
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model AuthSession {
+  id            String               @id @default(uuid()) @db.Uuid
+  userId        String               @db.Uuid
+  expiresAt     DateTime             @db.Timestamptz(3)
+  lastUsedAt    DateTime             @default(now()) @db.Timestamptz(3)
+  revokedAt     DateTime?            @db.Timestamptz(3)
+  revokeReason  SessionRevokeReason?
+  createdAt     DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @db.Timestamptz(3)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  id         String      @id @default(uuid()) @db.Uuid
+  sessionId  String      @db.Uuid
+  tokenHash  String      @unique @db.Char(64)
+  expiresAt  DateTime    @db.Timestamptz(3)
+  consumedAt DateTime?   @db.Timestamptz(3)
+  createdAt  DateTime    @default(now()) @db.Timestamptz(3)
+  session    AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, consumedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+enum SessionRevokeReason {
+  LOGOUT
+  REFRESH_TOKEN_REUSE
+  PASSWORD_CHANGE
+  SECURITY_EVENT
+  ACCOUNT_DISABLED
+}

@@ -2,9 +2,9 @@
 
 ## Purpose and current scope
 
-The application is an educational production-engineering system. Phase 0 establishes operational
-and architectural foundations without implementing product behavior. The system begins as a
-modular monolith with a separately scalable worker process.
+The application is an educational production-engineering system. Phase 0 established operational
+and architectural foundations. Phase 1 adds the first product boundary: authentication and profiles.
+The system remains a modular monolith with a separately scalable worker process.
 
 ## Runtime view
 
@@ -33,9 +33,10 @@ depend on narrow application/domain ports, not concrete Prisma, Redis, or S3 cli
 consume another module's public application API or a published event, but may not query its internal
 repository directly.
 
-The intended product modules are Auth, Users, Profiles, Social Graph, Posts, Media, Reactions,
-Comments, Saved Posts, Feed, Stories, Reels, Search, Messaging, Notifications, and Moderation. None
-exists in Phase 0 because an empty module creates ceremony without behavior or policy to protect.
+Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
+HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
+persistence. Future modules include Social Graph, Posts, Media, Reactions, Comments, Saved Posts,
+Feed, Stories, Reels, Search, Messaging, Notifications, and Moderation.
 
 ## Request lifecycle
 

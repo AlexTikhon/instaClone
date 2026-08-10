@@ -6,9 +6,11 @@ PostgreSQL is the system of record. Redis and search indexes must be reconstruct
 PostgreSQL state. Prisma supplies typed access and migrations; application code never uses schema
 synchronization in production.
 
-Phase 0 has a deliberately empty Prisma schema. Creating speculative product tables before identity,
-privacy, and lifecycle policies are implemented would freeze unreviewed assumptions. Phase 1 will
-create the first migration for users, profiles, credentials, and sessions.
+Phase 1's first migration separates users, profiles, credentials, sessions, and refresh-token
+history. Credentials and profiles are one-to-one dependents of a user. Sessions and tokens cascade
+on user/session deletion; token history is retained for the session lifetime so consumed-token reuse
+can be detected. Email and username are normalized by the application and protected by database
+unique constraints.
 
 ## Modelling conventions
 

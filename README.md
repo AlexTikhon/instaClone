@@ -1,7 +1,8 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 0 contains platform foundations only; it intentionally has no product features.
+monolith. Phase 1 adds secure authentication, rotating sessions, and owned profiles to the Phase 0
+platform foundation.
 
 ## Prerequisites
 
@@ -16,6 +17,12 @@ cp .env.example .env
 pnpm install
 docker compose up -d postgres redis minio minio-init
 pnpm dev
+```
+
+Apply the committed database migration before first use:
+
+```bash
+pnpm --filter @instaclone/api db:migrate:deploy
 ```
 
 - Web: `http://localhost:3000`

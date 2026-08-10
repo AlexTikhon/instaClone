@@ -19,6 +19,16 @@ const apiEnvironmentSchema = sharedRuntimeSchema.extend({
   S3_BUCKET: z.string().min(3),
   S3_FORCE_PATH_STYLE: z.stringbool().default(true),
   API_PORT: z.coerce.number().int().positive().max(65_535).default(4000),
+  AUTH_ACCESS_TOKEN_SECRET: z.string().min(32),
+  AUTH_REFRESH_TOKEN_PEPPER: z.string().min(32),
+  AUTH_ACCESS_TTL_SECONDS: z.coerce.number().int().min(60).max(3_600).default(900),
+  AUTH_REFRESH_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(3_600)
+    .max(60 * 60 * 24 * 90)
+    .default(60 * 60 * 24 * 30),
+  AUTH_COOKIE_SECURE: z.stringbool().default(false),
   API_CORS_ORIGINS: z
     .string()
     .default('http://localhost:3000')

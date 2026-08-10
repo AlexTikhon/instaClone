@@ -10,3 +10,21 @@ export type {
   LivenessResponse,
   ReadinessResponse,
 } from './platform-contracts';
+export {
+  authenticatedUserSchema,
+  authResponseSchema,
+  csrfResponseSchema,
+  loginInputSchema,
+  profileSchema,
+  registerInputSchema,
+  updateProfileInputSchema,
+} from './identity-contracts';
+export type {
+  AuthenticatedUser,
+  AuthResponse,
+  CsrfResponse,
+  LoginInput,
+  Profile,
+  RegisterInput,
+  UpdateProfileInput,
+} from './identity-contracts';

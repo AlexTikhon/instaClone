@@ -14,15 +14,25 @@
 The Compose credentials are development-only defaults. Any shared or production environment must
 inject distinct managed secrets, terminate TLS, and restrict database/Redis/MinIO network exposure.
 
-## Authentication plan (Phase 1)
+## Authentication and session controls (Phase 1)
 
-Passwords will use a memory-hard password hash with calibrated parameters. Short-lived access tokens
-and rotating refresh sessions will be evaluated against an HTTP-only secure-cookie design. Refresh
-token material must be hashed at rest, rotated atomically, and support reuse detection/revocation.
-CSRF protection will match the selected cookie strategy.
+Passwords use Argon2id with explicit memory, time, and parallelism parameters. Short-lived access
+tokens and opaque refresh tokens use separate secrets and HTTP-only, strict same-site cookies.
+Authenticated requests check the database session as well as the access-token signature.
 
-Backend authorization will enforce ownership, private-account, follow-request, and block policies at
-application boundaries. Browser-provided identity fields are never authoritative.
+Refresh material is HMAC-hashed at rest. A refresh transaction consumes one token and creates its
+replacement without extending the session's absolute lifetime. Reuse of any consumed token revokes
+the session. Logout also revokes the database session before clearing cookies.
+
+All browser mutations require a signed double-submit CSRF value in both `ic_csrf` and
+`X-CSRF-Token`. Set `AUTH_COOKIE_SECURE=true` for every TLS deployment; the false value in Compose is
+only for local HTTP development. Access, refresh, and pepper secrets must be replaced outside local
+development.
+
+Profile writes are available only at `/profiles/me`, with ownership derived from the verified
+session. Browser-provided identity fields are rejected by strict request schemas. Private-account,
+follow-request, and block policies remain assigned to the social-graph phase where those resources
+exist.
 
 ## Upload plan (Phase 3)
 
@@ -33,7 +43,7 @@ variants to separate keys. Object buckets remain non-public; delivery uses contr
 
 ## Outstanding hardening
 
-Rate limiting, CSRF enforcement, authentication, authorization policies, dependency scanning, audit
-events, content security policy tuning, and abuse controls are intentionally assigned to the phases
-where their request flows exist. Their absence means Phase 0 is a development foundation, not yet an
-internet-ready product.
+Rate limiting, email verification, password reset/change, MFA, session-management UI, audit events,
+content security policy tuning, and abuse controls remain outstanding. Authentication endpoints
+should not be exposed to the internet until rate limiting and managed production secrets are in
+place.

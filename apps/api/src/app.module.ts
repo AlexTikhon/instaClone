@@ -5,10 +5,12 @@ import { LoggerModule } from 'nestjs-pino';
 import { parseApiEnvironment, type ApiEnvironment } from '@instaclone/config';
 
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { ObjectStorageModule } from './infrastructure/object-storage/object-storage.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
     DatabaseModule,
     RedisModule,
     ObjectStorageModule,
+    AuthModule,
+    ProfilesModule,
     HealthModule,
   ],
 })

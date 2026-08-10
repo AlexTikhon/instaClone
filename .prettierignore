@@ -2,5 +2,6 @@ node_modules
 dist
 coverage
 .next
+apps/web/next-env.d.ts
 pnpm-lock.yaml
 apps/api/src/generated/prisma

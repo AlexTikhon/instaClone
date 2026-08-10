@@ -10,6 +10,8 @@ const validEnvironment = {
   S3_ACCESS_KEY: 'access-key',
   S3_SECRET_KEY: 'secret-key',
   S3_BUCKET: 'media-bucket',
+  AUTH_ACCESS_TOKEN_SECRET: 'access-token-secret-at-least-32-characters',
+  AUTH_REFRESH_TOKEN_PEPPER: 'refresh-token-pepper-at-least-32-characters',
 };
 
 describe('server environment', () => {
@@ -20,6 +22,7 @@ describe('server environment', () => {
     });
 
     expect(parsed.API_PORT).toBe(4000);
+    expect(parsed.AUTH_ACCESS_TTL_SECONDS).toBe(900);
     expect(parsed.API_CORS_ORIGINS).toEqual(['https://one.example', 'https://two.example']);
   });
 

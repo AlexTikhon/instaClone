@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 
 import type { ApiEnvironment } from '@instaclone/config';
@@ -15,6 +16,7 @@ export const configureApplication = (app: INestApplication): void => {
 
   app.useLogger(app.get(Logger));
   app.use(helmet());
+  app.use(cookieParser());
   app.enableCors({
     credentials: true,
     origin: config.get('API_CORS_ORIGINS', { infer: true }),
@@ -25,8 +27,8 @@ export const configureApplication = (app: INestApplication): void => {
 
   const openApiConfig = new DocumentBuilder()
     .setTitle('InstaClone API')
-    .setDescription('Phase 0 platform API. Product endpoints begin in Phase 1.')
-    .setVersion('0.1.0')
+    .setDescription('InstaClone platform, authentication, and profile API.')
+    .setVersion('1.0.0')
     .build();
   const document = SwaggerModule.createDocument(app, openApiConfig);
   SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: 'docs/openapi.json' });
