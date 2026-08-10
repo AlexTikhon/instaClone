@@ -10,6 +10,7 @@ import { AuthTokensService } from './auth-tokens.service';
 import { AuthService } from './auth.service';
 import { CsrfGuard } from './csrf.guard';
 import { PasswordService } from './password.service';
+import { VerifiedEmailGuard } from './verified-email.guard';
 
 @Module({
   imports: [IdentityModule],
@@ -23,7 +24,8 @@ import { PasswordService } from './password.service';
     AuthTokensService,
     CsrfGuard,
     PasswordService,
+    VerifiedEmailGuard,
   ],
-  exports: [AccessAuthGuard, AuthTokensService, CsrfGuard],
+  exports: [AccessAuthGuard, AuthTokensService, CsrfGuard, VerifiedEmailGuard],
 })
 export class AuthModule {}

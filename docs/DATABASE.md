@@ -17,6 +17,11 @@ sessions, and authentication audit events. Verification and reset transitions co
 the associated account update in a transaction. Password changes and resets revoke active sessions
 in the same transaction. Expiration and retention indexes support periodic cleanup.
 
+Phase 2 represents the Social Graph with `follows`, `follow_requests`, and `blocks`. Directed pairs
+use composite primary keys, indexed reverse lookups, cascading user foreign keys, and explicit
+not-self check constraints. Blocking deletes both-direction follow and request edges in the same
+serializable transaction that creates the block.
+
 ## Modelling conventions
 
 Future tables should use:
@@ -31,7 +36,7 @@ Future tables should use:
   orderings;
 - transactions around aggregate state changes and their outbox records.
 
-Likes, follows, and saved posts will use composite uniqueness so retries cannot duplicate state.
+Likes and saved posts will use composite uniqueness so retries cannot duplicate state.
 Large mutable collections will use keyset/cursor pagination, never primary-flow `OFFSET` pagination.
 
 ## Prisma workflow

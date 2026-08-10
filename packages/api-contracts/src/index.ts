@@ -26,6 +26,19 @@ export {
   updateProfileInputSchema,
   verifyEmailInputSchema,
 } from './identity-contracts';
+export {
+  followRequestSchema,
+  followRequestsResponseSchema,
+  socialConnectionResponseSchema,
+  socialConnectionStateSchema,
+  socialUserIdSchema,
+} from './social-contracts';
+export type {
+  FollowRequest,
+  FollowRequestsResponse,
+  SocialConnectionResponse,
+  SocialConnectionState,
+} from './social-contracts';
 export type {
   AcceptedResponse,
   AuthenticatedUser,

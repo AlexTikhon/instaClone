@@ -30,9 +30,7 @@ only for local HTTP development. Access, refresh, and pepper secrets must be rep
 development.
 
 Profile writes are available only at `/profiles/me`, with ownership derived from the verified
-session. Browser-provided identity fields are rejected by strict request schemas. Private-account,
-follow-request, and block policies remain assigned to the social-graph phase where those resources
-exist.
+session. Browser-provided identity fields are rejected by strict request schemas.
 
 ## Upload plan (Phase 3)
 
@@ -57,6 +55,17 @@ Registration, login, refresh, resend, and recovery are rate-limited with Redis-b
 Production startup rejects insecure cookies, weak placeholder authentication secrets, reused signing
 and hashing secrets, and non-HTTPS public web URLs. SMTP carries verification and recovery mail;
 Mailpit provides a local-only inbox.
+
+## Social Graph authorization (Phase 2)
+
+Social mutations require both an authenticated session and a verified email. The current session is
+the only source of actor identity. Self-follow and self-block transitions are rejected, only the
+private-account owner can accept or decline an incoming request, and database constraints provide a
+second line of defense against self-directed edges.
+
+Blocks are checked in both directions and deliberately surface as an unavailable target. Creating a
+block atomically removes follows and pending requests in both directions. Serializable transactions
+and composite primary keys keep retries idempotent and prevent duplicate edges.
 
 ## Outstanding hardening
 

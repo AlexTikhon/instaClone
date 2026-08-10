@@ -44,6 +44,25 @@ Registration, login, refresh, verification resend, and password-recovery routes 
 fixed-window limits. Password-forgot always returns the same accepted response, whether or not the
 email belongs to an account.
 
+## Social Graph endpoints
+
+Social mutations require a verified email, access cookie, and CSRF token. Actor identity always
+comes from the access session; request bodies cannot select a follower, request owner, or blocker.
+
+| Method | Path                                                 | Purpose                                      |
+| ------ | ---------------------------------------------------- | -------------------------------------------- |
+| POST   | `/api/v1/social/follows/:targetId`                   | Follow publicly or request a private account |
+| DELETE | `/api/v1/social/follows/:targetId`                   | Unfollow or cancel an outgoing request       |
+| GET    | `/api/v1/social/follow-requests`                     | List the caller's incoming requests          |
+| POST   | `/api/v1/social/follow-requests/:requesterId/accept` | Accept an incoming request                   |
+| DELETE | `/api/v1/social/follow-requests/:requesterId`        | Decline an incoming request                  |
+| POST   | `/api/v1/social/blocks/:targetId`                    | Block a user and remove relationships        |
+| DELETE | `/api/v1/social/blocks/:targetId`                    | Unblock a user                               |
+
+Follow and block operations are idempotent. A follow response is either `following` or `requested`.
+Blocked relationships return the same unavailable response as an inaccessible target so block state
+is not disclosed.
+
 All responses include `X-Request-ID`. A valid incoming value is propagated; invalid or missing values
 are replaced.
 

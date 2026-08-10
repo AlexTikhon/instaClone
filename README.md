@@ -1,9 +1,8 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 1.1 adds verified email, password recovery, device-session controls, Redis-backed
-authentication limits, audit history, and PostgreSQL integration coverage to the authentication and
-owned-profile foundation.
+monolith. Phase 2 adds a transactional Social Graph—public follows, private-account requests, and
+blocking—to the verified authentication, session-security, and owned-profile foundation.
 
 ## Prerequisites
 

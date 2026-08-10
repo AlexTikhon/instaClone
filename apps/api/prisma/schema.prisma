@@ -20,6 +20,12 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   auditEvents             AuthAuditEvent[]
+  outgoingFollows         Follow[]                  @relation("FollowerEdges")
+  incomingFollows         Follow[]                  @relation("FollowingEdges")
+  outgoingFollowRequests  FollowRequest[]           @relation("FollowRequesterEdges")
+  incomingFollowRequests  FollowRequest[]           @relation("FollowTargetEdges")
+  outgoingBlocks          Block[]                   @relation("BlockerEdges")
+  incomingBlocks          Block[]                   @relation("BlockedEdges")
 
   @@map("users")
 }
@@ -110,6 +116,42 @@ model AuthAuditEvent {
   @@index([userId, occurredAt])
   @@index([occurredAt])
   @@map("auth_audit_events")
+}
+
+model Follow {
+  followerId  String   @db.Uuid
+  followingId String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  follower    User     @relation("FollowerEdges", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("FollowingEdges", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId, createdAt])
+  @@map("follows")
+}
+
+model FollowRequest {
+  requesterId String   @db.Uuid
+  targetId    String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  requester   User     @relation("FollowRequesterEdges", fields: [requesterId], references: [id], onDelete: Cascade)
+  target      User     @relation("FollowTargetEdges", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([requesterId, targetId])
+  @@index([targetId, createdAt])
+  @@map("follow_requests")
+}
+
+model Block {
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  blocker   User     @relation("BlockerEdges", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedEdges", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
 }
 
 model RefreshToken {

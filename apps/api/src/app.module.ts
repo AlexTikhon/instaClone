@@ -11,6 +11,7 @@ import { ObjectStorageModule } from './infrastructure/object-storage/object-stor
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
 import { ProfilesModule } from './profiles/profiles.module';
+import { SocialGraphModule } from './social-graph/social-graph.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ProfilesModule } from './profiles/profiles.module';
     ObjectStorageModule,
     AuthModule,
     ProfilesModule,
+    SocialGraphModule,
     HealthModule,
   ],
 })

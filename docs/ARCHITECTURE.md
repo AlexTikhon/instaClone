@@ -5,6 +5,7 @@
 The application is an educational production-engineering system. Phase 0 established operational
 and architectural foundations. Phase 1 adds the first product boundary: authentication and profiles;
 Phase 1.1 hardens that boundary with recovery, verification, session controls, and audit history.
+Phase 2 introduces Social Graph as a separate application and persistence boundary.
 The system remains a modular monolith with a separately scalable worker process.
 
 ## Runtime view
@@ -36,8 +37,12 @@ repository directly.
 
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
-persistence. Future modules include Social Graph, Posts, Media, Reactions, Comments, Saved Posts,
-Feed, Stories, Reels, Search, Messaging, Notifications, and Moderation.
+persistence. Future modules include Posts, Media, Reactions, Comments, Saved Posts, Feed, Stories,
+Reels, Search, Messaging, Notifications, and Moderation.
+
+Social Graph owns directed follows, private-account requests, and blocks behind its own repository
+port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge
+transitions such as block and request acceptance are serializable PostgreSQL transactions.
 
 ## Request lifecycle
 
