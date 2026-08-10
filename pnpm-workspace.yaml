@@ -1,0 +1,24 @@
+packages:
+  - apps/*
+  - packages/*
+
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
+
+allowBuilds:
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@nestjs/common@11.1.29'
+  - '@nestjs/core@11.1.29'
+  - '@nestjs/platform-express@11.1.29'
+  - '@nestjs/testing@11.1.29'
+  - '@testing-library/jest-dom@7.0.1'
+  - tsx@4.23.12

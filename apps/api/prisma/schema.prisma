@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Phase 0 intentionally contains no product tables. The first migration belongs
+// to Phase 1, when identity ownership and deletion semantics can be reviewed.
