@@ -79,6 +79,26 @@ export {
 } from './feed-contracts';
 export type { FeedEngagement, FeedItem, FeedQuery, FeedResponse } from './feed-contracts';
 export {
+  exploreItemSchema,
+  exploreQuerySchema,
+  exploreResponseSchema,
+  MAX_SEARCH_QUERY_LENGTH,
+  MIN_SEARCH_QUERY_LENGTH,
+  searchRelationshipStateSchema,
+  searchUserResultSchema,
+  searchUsersQuerySchema,
+  searchUsersResponseSchema,
+} from './search-contracts';
+export type {
+  ExploreItem,
+  ExploreQuery,
+  ExploreResponse,
+  SearchRelationshipState,
+  SearchUserResult,
+  SearchUsersQuery,
+  SearchUsersResponse,
+} from './search-contracts';
+export {
   commentResponseSchema,
   commentsQuerySchema,
   commentsResponseSchema,

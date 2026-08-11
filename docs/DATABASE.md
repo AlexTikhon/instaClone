@@ -1,5 +1,28 @@
 # Database
 
+## Search and Explore
+
+Migration `20260811210000_search_explore` explicitly enables `pg_trgm`. Deploy roles must be allowed
+to create the extension, or an operator must preinstall it. GIN trigram indexes on
+`lower(profiles.username)` and `lower(profiles.displayName)` serve literal contains predicates.
+Matching `text_pattern_ops` expression indexes serve lowercase exact and prefix predicates. These
+indexes correspond directly to the six Search V1 ranking tiers; no index table or background indexer
+exists.
+
+Explore reads active posts from a 30-day window and uses the existing post, follow, block, media,
+like, and comment access paths. The candidate statement uses per-candidate indexed `postId` counts,
+then keysets a stable integer score. The first request takes PostgreSQL `CURRENT_TIMESTAMP` as
+`snapshotAt`. `post_likes.deletedAt` was added so unlike is a temporal state transition rather than a
+hard delete; relike resets `createdAt`. Together with existing comment soft deletion, the query can
+reconstruct engagement membership at the snapshot for every cursor page. Normal engagement reads
+filter `deletedAt IS NULL`.
+
+The deterministic scale fixture now creates 2,000 searchable profiles and 1,000 content posts with
+varied privacy, availability, media readiness, deletion, likes, and comments. This is a query-plan
+debugging fixture, not a production latency SLO. Search is one SQL query. Explore is one ranked
+candidate query followed by bounded post/media/profile hydration and four parallel engagement
+queries; none scale with result count as `1 + N` database queries.
+
 ## Stories
 
 `stories` stores independent authored content with exactly one MediaAsset reference, `createdAt`,
@@ -58,9 +81,9 @@ until query volume demonstrates a need and a reconciliation strategy exists.
 
 ## Phase 4 schema and access paths
 
-`post_likes` and `saved_posts` use `(userId, postId)` primary keys. Conflict-safe inserts make
-concurrent PUTs idempotent. Their `postId` indexes serve aggregation because the primary-key prefix
-is `userId`.
+`post_likes` and `saved_posts` use `(userId, postId)` primary keys. Conflict-safe insert/restore
+transitions make concurrent PUTs idempotent. Their `postId` indexes serve aggregation because the
+primary-key prefix is `userId`.
 
 `comments` is top-level-only. Soft-deleted rows are retained and a check rejects blank bodies.
 `(postId, deletedAt, createdAt, id)` matches active-comment pages/counts; `(authorId, createdAt)`
@@ -151,7 +174,8 @@ Future tables should use:
   orderings;
 - transactions around aggregate state changes and their outbox records.
 
-Likes and saved posts use composite uniqueness so retries cannot duplicate state.
+Likes and saved posts use composite uniqueness so retries cannot duplicate state. Likes retain a
+soft-deleted row to preserve Explore snapshot semantics; saves remain hard-deleted private state.
 Large mutable collections will use keyset/cursor pagination, never primary-flow `OFFSET` pagination.
 
 ## Prisma workflow

@@ -17,11 +17,18 @@ export class LikesService {
     return this.prisma.$transaction(
       async (transaction) => {
         const post = await this.access.requireInteractablePost(transaction, viewerId, postId);
-        const inserted = await transaction.postLike.createMany({
-          data: [{ userId: viewerId, postId }],
-          skipDuplicates: true,
+        const restored = await transaction.postLike.updateMany({
+          where: { userId: viewerId, postId, deletedAt: { not: null } },
+          data: { deletedAt: null, createdAt: new Date() },
         });
-        if (inserted.count === 1) {
+        const inserted =
+          restored.count === 0
+            ? await transaction.postLike.createMany({
+                data: [{ userId: viewerId, postId }],
+                skipDuplicates: true,
+              })
+            : { count: 0 };
+        if (restored.count === 1 || inserted.count === 1) {
           const event = createOutboxEvent({
             eventName: POST_LIKED_EVENT,
             aggregateType: 'PostLike',
@@ -33,7 +40,7 @@ export class LikesService {
         }
         return {
           liked: true,
-          likeCount: await transaction.postLike.count({ where: { postId } }),
+          likeCount: await transaction.postLike.count({ where: { postId, deletedAt: null } }),
         };
       },
       { isolationLevel: 'ReadCommitted' },
@@ -43,10 +50,13 @@ export class LikesService {
   unlike(viewerId: string, postId: string): Promise<LikeResponse> {
     return this.prisma.$transaction(async (transaction) => {
       await this.access.requireInteractablePost(transaction, viewerId, postId);
-      await transaction.postLike.deleteMany({ where: { userId: viewerId, postId } });
+      await transaction.postLike.updateMany({
+        where: { userId: viewerId, postId, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
       return {
         liked: false,
-        likeCount: await transaction.postLike.count({ where: { postId } }),
+        likeCount: await transaction.postLike.count({ where: { postId, deletedAt: null } }),
       };
     });
   }

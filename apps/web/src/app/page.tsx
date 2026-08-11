@@ -1,5 +1,5 @@
-import { IdentityPanel } from '../components/identity-panel';
 import { PlatformStatus } from '../components/platform-status';
+import { HomeApplication } from '../features/navigation/home-application';
 import { getApiLiveness } from '../lib/platform-api';
 
 export const dynamic = 'force-dynamic';
@@ -10,32 +10,32 @@ export default async function HomePage() {
   return (
     <main className="shell">
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">Stories · Phase 6</p>
-        <h1 id="page-title">Share, respond, and return to what matters.</h1>
+        <p className="eyebrow">Discovery &middot; Phase 7</p>
+        <h1 id="page-title">Share, discover, and return to what matters.</h1>
         <p className="lede">
-          A chronological home feed with durable activity and 24-hour Stories, built on secure
-          direct uploads and explicit social visibility rules.
+          A chronological home feed, 24-hour Stories, and privacy-safe discovery built on explicit
+          social visibility rules.
         </p>
         <PlatformStatus apiStatus={apiStatus} />
       </section>
 
-      <IdentityPanel />
+      <HomeApplication />
 
-      <section className="principles" aria-label="Identity principles">
+      <section className="principles" aria-label="Engineering principles">
         <article>
           <span>01</span>
-          <h2>Memory-hard credentials</h2>
-          <p>Passwords are Argon2id hashes and never cross the credential boundary again.</p>
+          <h2>PostgreSQL discovery</h2>
+          <p>Bounded, indexed relevance keeps search simple until scale demands extraction.</p>
         </article>
         <article>
           <span>02</span>
-          <h2>Rotating sessions</h2>
-          <p>One-time refresh tokens make replay visible and revoke the affected session.</p>
+          <h2>Shared visibility</h2>
+          <p>Search, Explore, posts, and Home enforce the same private-account and block policy.</p>
         </article>
         <article>
           <span>03</span>
-          <h2>Owned profile writes</h2>
-          <p>The API derives profile ownership from verified session state, never request data.</p>
+          <h2>Stable pagination</h2>
+          <p>Opaque keyset cursors bind discovery pages to deterministic ordering snapshots.</p>
         </article>
       </section>
     </main>

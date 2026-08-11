@@ -20,6 +20,7 @@ import { FeedModule } from './feed/feed.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { StoriesModule } from './stories/stories.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { StoriesModule } from './stories/stories.module';
     NotificationsModule,
     RealtimeModule,
     StoriesModule,
+    SearchModule,
     OutboxModule,
     HealthModule,
   ],

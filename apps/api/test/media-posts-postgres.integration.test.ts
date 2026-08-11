@@ -473,7 +473,23 @@ describe.runIf(postgresEnabled)('media and posts PostgreSQL integration', () => 
       .delete(`/api/v1/posts/${post.id}/save`)
       .set('x-csrf-token', viewer.csrfToken)
       .expect(200);
-    expect(await prisma.postLike.count({ where: { postId: post.id } })).toBe(0);
+    expect(await prisma.postLike.count({ where: { postId: post.id, deletedAt: null } })).toBe(0);
+    const deletedLike = await prisma.postLike.findUnique({
+      where: { userId_postId: { userId: viewer.userId, postId: post.id } },
+      select: { deletedAt: true },
+    });
+    expect(deletedLike?.deletedAt).toBeInstanceOf(Date);
+    await viewer.agent
+      .put(`/api/v1/posts/${post.id}/like`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200)
+      .expect((response) => expect(response.body).toMatchObject({ liked: true, likeCount: 1 }));
+    expect(
+      await prisma.postLike.findUnique({
+        where: { userId_postId: { userId: viewer.userId, postId: post.id } },
+        select: { deletedAt: true },
+      }),
+    ).toEqual({ deletedAt: null });
     expect(await prisma.savedPost.count({ where: { postId: post.id } })).toBe(0);
   });
 

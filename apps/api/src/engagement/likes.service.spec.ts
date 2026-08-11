@@ -9,6 +9,7 @@ describe('LikesService', () => {
     const transaction = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'post' }]),
       postLike: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
         createMany: vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 }),
         count: vi.fn().mockResolvedValue(1),
       },
@@ -33,7 +34,7 @@ describe('LikesService', () => {
   it('does not write when post authorization fails', async () => {
     const transaction = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'post' }]),
-      postLike: { createMany: vi.fn(), count: vi.fn() },
+      postLike: { updateMany: vi.fn(), createMany: vi.fn(), count: vi.fn() },
       outboxEvent: { create: vi.fn() },
     };
     const prisma = {
@@ -48,5 +49,6 @@ describe('LikesService', () => {
       new LikesService(prisma, access).like(crypto.randomUUID(), crypto.randomUUID(), 'request'),
     ).rejects.toThrow('hidden');
     expect(transaction.postLike.createMany).not.toHaveBeenCalled();
+    expect(transaction.postLike.updateMany).not.toHaveBeenCalled();
   });
 });

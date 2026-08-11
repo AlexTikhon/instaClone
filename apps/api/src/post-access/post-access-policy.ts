@@ -25,6 +25,31 @@ export class PostAccessPolicy {
     };
   }
 
+  /**
+   * Raw-SQL equivalent of visibleWhere for ranked candidate queries. Callers must use the fixed
+   * aliases `p` (posts), `u` (users), and `pr` (profiles). Hydration reapplies visibleWhere as a
+   * defense in depth check.
+   */
+  visibleSql(viewerId: string): Prisma.Sql {
+    return Prisma.sql`
+      p."deletedAt" IS NULL
+      AND u."disabledAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM blocks b
+        WHERE (b."blockerId" = ${viewerId}::uuid AND b."blockedId" = p."authorId")
+           OR (b."blockerId" = p."authorId" AND b."blockedId" = ${viewerId}::uuid)
+      )
+      AND (
+        p."authorId" = ${viewerId}::uuid
+        OR pr."isPrivate" = false
+        OR EXISTS (
+          SELECT 1 FROM follows f
+          WHERE f."followerId" = ${viewerId}::uuid AND f."followingId" = p."authorId"
+        )
+      )
+    `;
+  }
+
   async requireInteractablePost(
     database: DatabaseClient,
     viewerId: string,

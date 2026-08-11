@@ -21,8 +21,9 @@ interface RateLimitPolicy {
 
 const RATE_LIMIT_POLICY = 'auth-rate-limit-policy';
 
-export const AuthRateLimit = (policy: RateLimitPolicy): MethodDecorator =>
+export const RequestRateLimit = (policy: RateLimitPolicy): MethodDecorator =>
   SetMetadata(RATE_LIMIT_POLICY, policy);
+export const AuthRateLimit = RequestRateLimit;
 
 @Injectable()
 export class AuthRateLimitGuard implements CanActivate {
@@ -48,7 +49,7 @@ export class AuthRateLimitGuard implements CanActivate {
     );
     if (remainingWindow < 0) {
       response.setHeader('Retry-After', String(Math.abs(remainingWindow)));
-      throw new HttpException('Too many authentication attempts', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException('Too many requests', HttpStatus.TOO_MANY_REQUESTS);
     }
     return true;
   }

@@ -1,22 +1,11 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
-import type { AuthenticatedUser } from '@instaclone/api-contracts';
-
-import {
-  getCsrfToken,
-  getCurrentUser,
-  login,
-  logout,
-  refreshSession,
-  register,
-  updateOwnProfile,
-} from '../lib/identity-api';
+import { getCsrfToken, login, logout, register, updateOwnProfile } from '../lib/identity-api';
 import { CreatePostForm } from '../features/create-post/create-post-form';
-import { AuthenticatedContent } from '../features/notifications/authenticated-content';
-import { DiscoverUser } from '../features/follow-user/discover-user';
 import { CreateStoryForm } from '../features/create-story/create-story-form';
+import { useAuth } from '../features/auth/auth-provider';
 
 type Mode = 'login' | 'register';
 
@@ -29,35 +18,10 @@ const formString = (data: FormData, name: string): string => {
 };
 
 export function IdentityPanel() {
-  const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const { user, loading, setUser } = useAuth();
   const [mode, setMode] = useState<Mode>('register');
-  const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const restore = async () => {
-      try {
-        const current = await getCurrentUser();
-        if (active) setUser(current);
-      } catch {
-        try {
-          const csrfToken = await getCsrfToken();
-          const current = await refreshSession(csrfToken);
-          if (active) setUser(current);
-        } catch {
-          // A visitor without a session should see the auth form, not an error state.
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void restore();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -131,55 +95,51 @@ export function IdentityPanel() {
 
   if (user) {
     return (
-      <div className="authenticatedApp">
-        <section className="identityCard" aria-labelledby="profile-title">
-          <div className="identityHeader">
-            <div>
-              <p className="eyebrow">Authenticated profile</p>
-              <h2 id="profile-title">@{user.profile.username}</h2>
-            </div>
-            <button
-              className="secondaryButton"
-              type="button"
-              disabled={pending}
-              onClick={() => void endSession()}
-            >
-              Log out
-            </button>
+      <section className="identityCard" aria-labelledby="profile-title">
+        <div className="identityHeader">
+          <div>
+            <p className="eyebrow">Authenticated profile</p>
+            <h2 id="profile-title">@{user.profile.username}</h2>
           </div>
-          <form className="identityForm" onSubmit={(event) => void submitProfile(event)}>
-            <label>
-              Display name
-              <input
-                name="displayName"
-                defaultValue={user.profile.displayName}
-                required
-                maxLength={60}
-              />
-            </label>
-            <label>
-              Bio
-              <textarea name="bio" defaultValue={user.profile.bio} maxLength={160} rows={3} />
-            </label>
-            <label>
-              Website
-              <input name="websiteUrl" defaultValue={user.profile.websiteUrl ?? ''} type="url" />
-            </label>
-            <label className="checkLabel">
-              <input name="isPrivate" type="checkbox" defaultChecked={user.profile.isPrivate} />
-              Private account
-            </label>
-            {error && <p className="formError">{error}</p>}
-            <button type="submit" disabled={pending}>
-              {pending ? 'Saving…' : 'Save profile'}
-            </button>
-          </form>
-          <CreatePostForm emailVerified={user.emailVerified} />
-          <CreateStoryForm emailVerified={user.emailVerified} />
-          <DiscoverUser emailVerified={user.emailVerified} />
-        </section>
-        <AuthenticatedContent />
-      </div>
+          <button
+            className="secondaryButton"
+            type="button"
+            disabled={pending}
+            onClick={() => void endSession()}
+          >
+            Log out
+          </button>
+        </div>
+        <form className="identityForm" onSubmit={(event) => void submitProfile(event)}>
+          <label>
+            Display name
+            <input
+              name="displayName"
+              defaultValue={user.profile.displayName}
+              required
+              maxLength={60}
+            />
+          </label>
+          <label>
+            Bio
+            <textarea name="bio" defaultValue={user.profile.bio} maxLength={160} rows={3} />
+          </label>
+          <label>
+            Website
+            <input name="websiteUrl" defaultValue={user.profile.websiteUrl ?? ''} type="url" />
+          </label>
+          <label className="checkLabel">
+            <input name="isPrivate" type="checkbox" defaultChecked={user.profile.isPrivate} />
+            Private account
+          </label>
+          {error && <p className="formError">{error}</p>}
+          <button type="submit" disabled={pending}>
+            {pending ? 'Saving…' : 'Save profile'}
+          </button>
+        </form>
+        <CreatePostForm emailVerified={user.emailVerified} />
+        <CreateStoryForm emailVerified={user.emailVerified} />
+      </section>
     );
   }
 

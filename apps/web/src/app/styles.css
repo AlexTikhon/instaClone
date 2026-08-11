@@ -389,6 +389,219 @@ textarea:focus-visible {
   margin-top: 72px;
 }
 
+.productApp {
+  display: grid;
+  gap: 36px;
+  margin-top: 72px;
+}
+
+.productShell {
+  padding-top: 32px;
+}
+
+.productShell .productApp {
+  margin-top: 0;
+}
+
+.primaryNavigation {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  background: rgba(13, 13, 13, 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.primaryNavigation > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.primaryNavigation a {
+  border-radius: 6px;
+  color: var(--muted);
+  padding: 9px 11px;
+  text-decoration: none;
+}
+
+.primaryNavigation a:hover,
+.primaryNavigation a.active {
+  background: rgba(255, 118, 87, 0.14);
+  color: var(--ink);
+}
+
+.primaryNavigation .brandLink {
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.discoveryPage {
+  display: grid;
+  width: min(860px, 100%);
+  gap: 24px;
+  margin: 0 auto;
+}
+
+.pageHeader h1,
+.publicProfileHeader h1 {
+  margin: 4px 0 10px;
+  font-size: clamp(2.4rem, 7vw, 4.8rem);
+  line-height: 1;
+}
+
+.pageHeader p {
+  margin-bottom: 0;
+}
+
+.searchInput input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 15px 20px;
+}
+
+.discoveryState {
+  min-height: 120px;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(21, 21, 21, 0.8);
+  color: var(--muted);
+}
+
+.searchResults {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+  list-style: none;
+}
+
+.searchResults li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.searchResults li > a {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.searchResults li > a > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.searchResults small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileAvatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #292522;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.profileAvatarLarge {
+  width: 112px;
+  height: 112px;
+  font-size: 2rem;
+}
+
+.exploreGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.exploreTile {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.exploreTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.exploreTile span {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 28px 10px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.exploreTile:hover span,
+.exploreTile:focus-visible span {
+  opacity: 1;
+}
+
+.exploreSkeleton {
+  min-height: 580px;
+  background: linear-gradient(100deg, #151515 30%, #24211f 50%, #151515 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.publicProfileHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.publicProfileHeader h2,
+.publicProfileHeader p {
+  margin: 8px 0;
+}
+
 .authenticatedApp .identityCard {
   position: sticky;
   top: 24px;
@@ -657,5 +870,40 @@ textarea:focus-visible {
 
   .postHeader {
     align-items: flex-start;
+  }
+
+  .productShell {
+    width: min(100% - 24px, 1120px);
+    padding-top: 8px;
+  }
+
+  .primaryNavigation {
+    align-items: flex-start;
+  }
+
+  .primaryNavigation > div {
+    gap: 0;
+  }
+
+  .primaryNavigation a {
+    padding: 8px 7px;
+    font-size: 0.78rem;
+  }
+
+  .searchResults li {
+    align-items: flex-start;
+  }
+
+  .searchResults button {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  .publicProfileHeader {
+    grid-template-columns: auto 1fr;
+  }
+
+  .publicProfileHeader button {
+    grid-column: 1 / -1;
   }
 }

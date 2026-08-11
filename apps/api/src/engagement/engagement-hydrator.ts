@@ -11,7 +11,7 @@ export class EngagementHydrator {
     const [likeCounts, commentCounts, viewerLikes, viewerSaves] = await Promise.all([
       this.prisma.postLike.groupBy({
         by: ['postId'],
-        where: { postId: { in: postIds } },
+        where: { postId: { in: postIds }, deletedAt: null },
         _count: { _all: true },
       }),
       this.prisma.comment.groupBy({
@@ -24,7 +24,7 @@ export class EngagementHydrator {
         _count: { _all: true },
       }),
       this.prisma.postLike.findMany({
-        where: { userId: viewerId, postId: { in: postIds } },
+        where: { userId: viewerId, postId: { in: postIds }, deletedAt: null },
         select: { postId: true },
       }),
       this.prisma.savedPost.findMany({

@@ -1,6 +1,8 @@
 import {
   postResponseSchema,
+  paginatedPostsResponseSchema,
   type CreatePostInput,
+  type PaginatedPostsResponse,
   type PostResponse,
 } from '@instaclone/api-contracts';
 
@@ -16,4 +18,15 @@ export const createPost = async (
     body: JSON.stringify(input),
   });
   return postResponseSchema.parse(await response.json());
+};
+
+export const listPosts = async (
+  authorId: string,
+  cursor: string | undefined,
+  signal?: AbortSignal,
+): Promise<PaginatedPostsResponse> => {
+  const query = new URLSearchParams({ authorId, limit: '12' });
+  if (cursor) query.set('cursor', cursor);
+  const response = await apiRequest(`/posts?${query.toString()}`, { signal });
+  return paginatedPostsResponseSchema.parse(await response.json());
 };

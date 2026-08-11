@@ -1,5 +1,34 @@
 # Architecture
 
+## Phase 7 Search and Explore
+
+Search is a read-oriented application module with a repository port. It interprets and validates
+queries, owns relevance and cursor semantics, and composes minimal user or post results; it does not
+own Profile, Post, Social Graph, Media, or engagement persistence. The current adapter uses
+parameterized PostgreSQL SQL. Controllers and web contracts contain no trigram or SQL concepts, so a
+future index can replace the adapter rather than leak through the product.
+
+User search executes one statement for matching, six-tier deterministic ranking, both-direction
+block exclusion, account availability, and outgoing relationship state. Literal contains matching is
+served by lowercase trigram indexes; exact/prefix matching has lowercase pattern indexes. The cursor
+is query-bound and orders by `(rank, normalizedUsername, userId)`.
+
+Explore is distinct from Home: it scans a bounded 30-day window of all legally visible, non-self
+posts rather than self/following chronology. It weights snapshot likes and comments and adds a
+seven-day hourly freshness component. The first page fixes PostgreSQL `snapshotAt`; retained
+like/comment deletion timestamps make score membership reproducible. The cursor keysets
+`(score, createdAt, postId)`. Access or lifecycle changes still hide content immediately.
+
+The ranked query returns IDs, score, and ordering fields only. Hydration reapplies
+`PostAccessPolicy`, requires READY presentable media, maps through `PostsService` for signed URLs, and
+uses `EngagementHydrator` in batch. This yields one candidate query, bounded Prisma relation loading,
+and four parallel engagement queries rather than an N+1 loop.
+
+The Next.js layout owns one auth restoration provider. Authenticated routes share a responsive
+navigation shell: Home, Search, Explore, Notifications, and Profile. Search uses a 350 ms debounce,
+URL state, abort-aware TanStack Query requests, centralized keys, and existing social mutations.
+Explore and profile timelines use responsive, aspect-stable lazy image grids.
+
 ## Phase 6 Stories
 
 Stories is an explicit product module, not a Post subtype. `Story` owns a single MediaAsset
@@ -116,8 +145,8 @@ repository directly.
 
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
-persistence. Current product modules also include Posts, Stories, Media, Engagement, Feed, Social
-Graph, and Notifications. Reels, Search, Messaging, and Moderation remain future phases.
+persistence. Current product modules also include Posts, Stories, Media, Engagement, Feed, Search,
+Social Graph, and Notifications. Reels, Messaging, and Moderation remain future phases.
 
 Social Graph owns directed follows, private-account requests, and blocks behind its own repository
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge

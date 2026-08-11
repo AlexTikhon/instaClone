@@ -1,5 +1,14 @@
 # Security
 
+## Discovery
+
+Search and Explore require authentication, enforce bounded query/page sizes, and apply a 120 request
+per minute IP-derived bucket. Search text is not included in structured application logs. SQL values
+are parameterized and LIKE metacharacters are escaped as literal input. Both-direction blocks and
+account availability are applied inside candidate queries; Explore additionally reapplies the shared
+post visibility policy during hydration. Missing and excluded data is represented by omission, never
+by a block/private-state diagnostic.
+
 ## Story controls (Phase 6)
 
 The create schema accepts only `mediaAssetId`; author identity comes from the authenticated session,

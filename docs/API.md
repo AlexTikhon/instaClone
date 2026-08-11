@@ -1,5 +1,28 @@
 # API
 
+## Search and Explore
+
+Both discovery endpoints require an authenticated access-cookie session. They are bounded to 120
+requests per IP-derived bucket per minute and never accept viewer identity from request data.
+
+| Method | Path                                     | Behavior                               |
+| ------ | ---------------------------------------- | -------------------------------------- |
+| GET    | `/api/v1/search/users?q=&limit=&cursor=` | Ranked username/display-name discovery |
+| GET    | `/api/v1/explore?limit=&cursor=`         | Snapshot-ranked visible post discovery |
+
+User search accepts a normalized query of 2–60 characters and pages at most 25 results. Its response
+is `{ users, nextCursor, hasMore }`. A user contains only `userId`, username, display name, privacy,
+and the caller-relative `self | none | following | requested` state. Email, security state,
+moderation state, and block direction are never returned. Ranking is exact username, username
+prefix, exact display name, display-name prefix, username contains, then display-name contains.
+Wildcards are literal. Invalid or query-mismatched cursors use `INVALID_SEARCH_CURSOR`.
+
+Explore pages at most 30 items and returns `{ items, nextCursor, hasMore, snapshotAt }`. Items reuse
+the post plus engagement shape from Home. A first page fixes score inputs to `snapshotAt`, then orders
+by weighted likes/comments, seven-day freshness, creation time, and post ID. Invalid cursors use
+`INVALID_EXPLORE_CURSOR`. Own posts, deleted posts, inaccessible private authors, both block
+directions, unavailable accounts, and unready media are excluded.
+
 ## Stories
 
 All actor/viewer identity comes from the authenticated cookie session. Creation accepts the strict

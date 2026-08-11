@@ -31,6 +31,7 @@ import { VerifiedEmailGuard } from './verified-email.guard';
   exports: [
     AccessAuthGuard,
     AccessSessionAuthenticator,
+    AuthRateLimitGuard,
     AuthTokensService,
     CsrfGuard,
     VerifiedEmailGuard,

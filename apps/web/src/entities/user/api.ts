@@ -22,3 +22,10 @@ export const followProfile = async (userId: string): Promise<SocialConnectionRes
   });
   return socialConnectionResponseSchema.parse(await response.json());
 };
+
+export const unfollowProfile = async (userId: string): Promise<void> => {
+  await apiRequest(`/social/follows/${userId}`, {
+    method: 'DELETE',
+    headers: { 'x-csrf-token': await getCsrfToken() },
+  });
+};
