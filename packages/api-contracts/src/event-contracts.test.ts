@@ -5,6 +5,8 @@ import {
   followRequestedEventSchema,
   MEDIA_UPLOADED_EVENT,
   mediaUploadedEventSchema,
+  STORY_CREATED_EVENT,
+  storyCreatedEventSchema,
   USER_FOLLOWED_EVENT,
   userFollowedEventSchema,
 } from './event-contracts';
@@ -24,6 +26,27 @@ describe('event contracts', () => {
         payload: { mediaId, ownerId: crypto.randomUUID() },
       }).payload.mediaId,
     ).toBe(mediaId);
+  });
+
+  it('validates a presentation-free Story creation fact', () => {
+    const storyId = crypto.randomUUID();
+    expect(
+      storyCreatedEventSchema.parse({
+        eventId: crypto.randomUUID(),
+        eventName: STORY_CREATED_EVENT,
+        eventVersion: 1,
+        aggregateType: 'Story',
+        aggregateId: storyId,
+        occurredAt: new Date().toISOString(),
+        correlationId: 'story-create',
+        payload: {
+          storyId,
+          authorId: crypto.randomUUID(),
+          mediaAssetId: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        },
+      }).payload.storyId,
+    ).toBe(storyId);
   });
 
   it('keeps follow facts versioned and presentation-free', () => {

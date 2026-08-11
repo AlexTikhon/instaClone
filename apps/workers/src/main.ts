@@ -11,8 +11,10 @@ import {
   MEDIA_UPLOADED_EVENT,
   POST_CREATED_EVENT,
   POST_LIKED_EVENT,
+  STORY_CREATED_EVENT,
   USER_FOLLOWED_EVENT,
   postCreatedEventSchema,
+  storyCreatedEventSchema,
   type EventEnvelope,
 } from '@instaclone/api-contracts';
 import { parseWorkerEnvironment } from '@instaclone/config';
@@ -35,6 +37,7 @@ import { MediaUploadedJobHandler } from './media/media-uploaded.job';
 import { NotificationProjectionRepository } from './notifications/notification-projection.repository';
 import { NotificationProjector } from './notifications/notification-projector';
 import { NotificationRealtimePublisher } from './notifications/notification-realtime.publisher';
+import { StoryRetentionJob } from './stories/story-retention.job';
 
 const environment = parseWorkerEnvironment(process.env);
 const logger = pino({
@@ -74,12 +77,28 @@ const domainEventRouter = new DomainEventRouter(
   new Map<string, DomainEventHandler>([
     [MEDIA_UPLOADED_EVENT, mediaHandler],
     [POST_CREATED_EVENT, new ValidatedEventHandler((input) => postCreatedEventSchema.parse(input))],
+    [
+      STORY_CREATED_EVENT,
+      new ValidatedEventHandler((input) => storyCreatedEventSchema.parse(input)),
+    ],
     [POST_LIKED_EVENT, notificationProjector],
     [COMMENT_CREATED_EVENT, notificationProjector],
     [USER_FOLLOWED_EVENT, notificationProjector],
     [FOLLOW_REQUESTED_EVENT, notificationProjector],
   ]),
 );
+const storyRetention = new StoryRetentionJob(database);
+const runStoryRetention = async (): Promise<void> => {
+  try {
+    const deletedCount = await storyRetention.run();
+    logger.info({ deletedCount }, 'story retention completed');
+  } catch (error) {
+    logger.error({ error }, 'story retention failed');
+  }
+};
+const storyRetentionTimer = setInterval(() => void runStoryRetention(), 60 * 60 * 1_000);
+storyRetentionTimer.unref();
+void runStoryRetention();
 
 const worker = new Worker<PlatformProbeData, PlatformProbeResult>(
   PLATFORM_QUEUE,
@@ -120,6 +139,7 @@ domainWorker.on('completed', (job, result) => {
       eventName: job.data.eventName,
       mediaId: job.data.eventName === MEDIA_UPLOADED_EVENT ? job.data.aggregateId : undefined,
       postId: job.data.eventName === POST_CREATED_EVENT ? job.data.aggregateId : undefined,
+      storyId: job.data.eventName === STORY_CREATED_EVENT ? job.data.aggregateId : undefined,
       result,
     },
     'domain event completed',
@@ -140,6 +160,7 @@ domainWorker.on('error', (error) => logger.error({ error }, 'domain worker error
 
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, 'worker shutting down');
+  clearInterval(storyRetentionTimer);
   await Promise.all([worker.close(), domainWorker.close()]);
   await database.end();
   await Promise.all([redis.quit(), realtimeRedis.quit()]);

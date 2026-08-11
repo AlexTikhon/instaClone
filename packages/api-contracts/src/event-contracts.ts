@@ -7,6 +7,7 @@ export const POST_LIKED_EVENT = 'POST_LIKED';
 export const COMMENT_CREATED_EVENT = 'COMMENT_CREATED';
 export const USER_FOLLOWED_EVENT = 'USER_FOLLOWED';
 export const FOLLOW_REQUESTED_EVENT = 'FOLLOW_REQUESTED';
+export const STORY_CREATED_EVENT = 'STORY_CREATED';
 
 export const eventEnvelopeSchema = z.object({
   eventId: z.uuid(),
@@ -95,6 +96,20 @@ export const followRequestedEventSchema = eventEnvelopeSchema.extend({
   payload: followRequestedPayloadSchema,
 });
 
+export const storyCreatedPayloadSchema = z.strictObject({
+  storyId: z.uuid(),
+  authorId: z.uuid(),
+  mediaAssetId: z.uuid(),
+  expiresAt: z.iso.datetime(),
+});
+
+export const storyCreatedEventSchema = eventEnvelopeSchema.extend({
+  eventName: z.literal(STORY_CREATED_EVENT),
+  eventVersion: z.literal(1),
+  aggregateType: z.literal('Story'),
+  payload: storyCreatedPayloadSchema,
+});
+
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
 export type MediaUploadedEvent = z.infer<typeof mediaUploadedEventSchema>;
 export type PostCreatedEvent = z.infer<typeof postCreatedEventSchema>;
@@ -102,3 +117,4 @@ export type PostLikedEvent = z.infer<typeof postLikedEventSchema>;
 export type CommentCreatedEvent = z.infer<typeof commentCreatedEventSchema>;
 export type UserFollowedEvent = z.infer<typeof userFollowedEventSchema>;
 export type FollowRequestedEvent = z.infer<typeof followRequestedEventSchema>;
+export type StoryCreatedEvent = z.infer<typeof storyCreatedEventSchema>;

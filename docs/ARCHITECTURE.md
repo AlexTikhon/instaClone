@@ -1,5 +1,32 @@
 # Architecture
 
+## Phase 6 Stories
+
+Stories is an explicit product module, not a Post subtype. `Story` owns a single MediaAsset
+reference, a 24-hour lifecycle, soft deletion, read models, and durable viewer state. Media remains
+the owner of upload validation and signed display URLs; Stories never uses an object-storage client.
+READY image assets are immutable references and may be reused by both a Post and one or more Stories.
+Deleting or expiring either content record does not synchronously delete the shared binary.
+
+PostgreSQL time is authoritative. Creation uses `CURRENT_TIMESTAMP` and derives
+`expiresAt = CURRENT_TIMESTAMP + interval '24 hours'` in the same statement. Tray, sequence, direct
+read, and view-recording SQL all require `deletedAt IS NULL AND expiresAt > CURRENT_TIMESTAMP`.
+The hourly worker cleanup is storage hygiene, not expiration correctness: it hard-deletes Story and
+cascaded StoryView rows only 30 days after expiration, while media cleanup remains future shared work.
+
+The tray is a two-level read model. `GET /stories` executes one relational aggregate over active
+self/following Stories, accepted follows, both-direction blocks, author/profile availability, and the
+viewer's StoryView rows. PostgreSQL computes `BOOL_OR(view missing)` per non-self author. The result is
+limited to 100 author groups and ordered unseen-first, then by latest active Story descending. A
+second request loads at most 100 active Stories for the selected author, oldest-first for playback.
+This is a constant query count per operation and has no per-followed-author SQL loop.
+
+The web feature uses TanStack Query for tray, per-author sequences, view mutations, deletion, and
+viewer pages. A small reducer owns only `isOpen`, `authorIndex`, and `storyIndex`; it advances through
+an author's sequence, then the next tray group, and closes after the final group. The current visible
+image triggers view recording. A browser-side Set suppresses noisy repeats, while database uniqueness
+is the correctness boundary. Six-second image advancement is UX only and cannot extend visibility.
+
 ## Phase 5 notifications and realtime foundation
 
 Notifications are a PostgreSQL projection of durable domain events inside the modular monolith. A
@@ -89,8 +116,8 @@ repository directly.
 
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
-persistence. Current product modules also include Posts, Media, Engagement, Feed, Social Graph, and
-Notifications. Stories, Reels, Search, Messaging, and Moderation remain future phases.
+persistence. Current product modules also include Posts, Stories, Media, Engagement, Feed, Social
+Graph, and Notifications. Reels, Search, Messaging, and Moderation remain future phases.
 
 Social Graph owns directed follows, private-account requests, and blocks behind its own repository
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge

@@ -20,14 +20,16 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   auditEvents             AuthAuditEvent[]
-  outgoingFollows         Follow[]                  @relation("FollowerEdges")
-  incomingFollows         Follow[]                  @relation("FollowingEdges")
-  outgoingFollowRequests  FollowRequest[]           @relation("FollowRequesterEdges")
-  incomingFollowRequests  FollowRequest[]           @relation("FollowTargetEdges")
-  outgoingBlocks          Block[]                   @relation("BlockerEdges")
-  incomingBlocks          Block[]                   @relation("BlockedEdges")
+  outgoingFollows         Follow[]                 @relation("FollowerEdges")
+  incomingFollows         Follow[]                 @relation("FollowingEdges")
+  outgoingFollowRequests  FollowRequest[]          @relation("FollowRequesterEdges")
+  incomingFollowRequests  FollowRequest[]          @relation("FollowTargetEdges")
+  outgoingBlocks          Block[]                  @relation("BlockerEdges")
+  incomingBlocks          Block[]                  @relation("BlockedEdges")
   mediaAssets             MediaAsset[]
   posts                   Post[]
+  stories                 Story[]                  @relation("StoryAuthor")
+  storyViews              StoryView[]              @relation("StoryViewer")
   postLikes               PostLike[]
   comments                Comment[]
   savedPosts              SavedPost[]
@@ -150,26 +152,27 @@ model FollowRequest {
 }
 
 model MediaAsset {
-  id                 String           @id @default(uuid()) @db.Uuid
-  ownerId            String           @db.Uuid
-  kind               MediaKind
-  objectKey          String           @unique @db.VarChar(512)
-  thumbnailObjectKey String?          @unique @db.VarChar(512)
-  declaredMimeType   String           @db.VarChar(128)
-  declaredSizeBytes  Int
-  verifiedSizeBytes  Int?
-  width              Int?
-  height             Int?
-  durationMs         Int?
-  status             MediaAssetStatus @default(PENDING_UPLOAD)
-  failureCode        String?          @db.VarChar(64)
-  processingStartedAt DateTime?       @db.Timestamptz(3)
-  processingLeaseUntil DateTime?      @db.Timestamptz(3)
-  processingWorkerId String?          @db.VarChar(128)
-  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
-  owner              User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  postMedia          PostMedia?
+  id                   String           @id @default(uuid()) @db.Uuid
+  ownerId              String           @db.Uuid
+  kind                 MediaKind
+  objectKey            String           @unique @db.VarChar(512)
+  thumbnailObjectKey   String?          @unique @db.VarChar(512)
+  declaredMimeType     String           @db.VarChar(128)
+  declaredSizeBytes    Int
+  verifiedSizeBytes    Int?
+  width                Int?
+  height               Int?
+  durationMs           Int?
+  status               MediaAssetStatus @default(PENDING_UPLOAD)
+  failureCode          String?          @db.VarChar(64)
+  processingStartedAt  DateTime?        @db.Timestamptz(3)
+  processingLeaseUntil DateTime?        @db.Timestamptz(3)
+  processingWorkerId   String?          @db.VarChar(128)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+  owner                User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  postMedia            PostMedia?
+  stories              Story[]
 
   @@index([ownerId, createdAt])
   @@index([status, updatedAt])
@@ -178,17 +181,17 @@ model MediaAsset {
 }
 
 model Post {
-  id        String      @id @default(uuid()) @db.Uuid
-  authorId  String      @db.Uuid
-  caption   String      @default("") @db.VarChar(2200)
-  createdAt DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
-  deletedAt DateTime?   @db.Timestamptz(3)
-  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media     PostMedia[]
-  likes     PostLike[]
-  comments  Comment[]
-  savedBy   SavedPost[]
+  id            String         @id @default(uuid()) @db.Uuid
+  authorId      String         @db.Uuid
+  caption       String         @default("") @db.VarChar(2200)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime?      @db.Timestamptz(3)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media         PostMedia[]
+  likes         PostLike[]
+  comments      Comment[]
+  savedBy       SavedPost[]
   notifications Notification[]
 
   @@index([authorId, createdAt, id])
@@ -209,15 +212,15 @@ model PostLike {
 }
 
 model Comment {
-  id        String    @id @default(uuid()) @db.Uuid
-  postId    String    @db.Uuid
-  authorId  String    @db.Uuid
-  body      String    @db.VarChar(1000)
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
-  deletedAt DateTime? @db.Timestamptz(3)
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id            String         @id @default(uuid()) @db.Uuid
+  postId        String         @db.Uuid
+  authorId      String         @db.Uuid
+  body          String         @db.VarChar(1000)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  deletedAt     DateTime?      @db.Timestamptz(3)
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   notifications Notification[]
 
   @@index([postId, deletedAt, createdAt, id])
@@ -249,14 +252,43 @@ model PostMedia {
   @@map("post_media")
 }
 
+model Story {
+  id           String      @id @default(uuid()) @db.Uuid
+  authorId     String      @db.Uuid
+  mediaAssetId String      @db.Uuid
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  expiresAt    DateTime    @db.Timestamptz(3)
+  deletedAt    DateTime?   @db.Timestamptz(3)
+  author       User        @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset  @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  views        StoryView[]
+
+  @@index([authorId, expiresAt, createdAt, id])
+  @@index([expiresAt, authorId])
+  @@map("stories")
+}
+
+model StoryView {
+  storyId  String   @db.Uuid
+  viewerId String   @db.Uuid
+  viewedAt DateTime @default(now()) @db.Timestamptz(3)
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer   User     @relation("StoryViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, viewerId])
+  @@index([storyId, viewedAt, viewerId])
+  @@index([viewerId, storyId])
+  @@map("story_views")
+}
+
 model OutboxEvent {
-  eventId       String   @id @default(uuid()) @db.Uuid
-  eventName     String   @db.VarChar(128)
+  eventId       String    @id @default(uuid()) @db.Uuid
+  eventName     String    @db.VarChar(128)
   eventVersion  Int
-  aggregateType String   @db.VarChar(64)
-  aggregateId   String   @db.Uuid
-  occurredAt    DateTime @default(now()) @db.Timestamptz(3)
-  correlationId String   @db.VarChar(128)
+  aggregateType String    @db.VarChar(64)
+  aggregateId   String    @db.Uuid
+  occurredAt    DateTime  @default(now()) @db.Timestamptz(3)
+  correlationId String    @db.VarChar(128)
   payload       Json
   publishedAt   DateTime? @db.Timestamptz(3)
   lockedAt      DateTime? @db.Timestamptz(3)
@@ -269,30 +301,30 @@ model OutboxEvent {
 }
 
 model ConsumerEventReceipt {
-  eventId     String   @db.Uuid
-  consumerName String  @db.VarChar(128)
-  processedAt DateTime @default(now()) @db.Timestamptz(3)
+  eventId      String   @db.Uuid
+  consumerName String   @db.VarChar(128)
+  processedAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@id([eventId, consumerName])
   @@map("consumer_event_receipts")
 }
 
 model Notification {
-  id                  String           @id @default(uuid()) @db.Uuid
-  sourceEventId       String           @unique @db.Uuid
-  recipientId         String           @db.Uuid
-  actorId             String?          @db.Uuid
-  type                NotificationType
-  postId              String?          @db.Uuid
-  commentId           String?          @db.Uuid
-  actorUsername       String           @db.VarChar(30)
-  actorDisplayName    String           @db.VarChar(60)
-  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
-  readAt              DateTime?        @db.Timestamptz(3)
-  recipient           User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor               User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-  post                Post?            @relation(fields: [postId], references: [id], onDelete: SetNull)
-  comment             Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  id               String           @id @default(uuid()) @db.Uuid
+  sourceEventId    String           @unique @db.Uuid
+  recipientId      String           @db.Uuid
+  actorId          String?          @db.Uuid
+  type             NotificationType
+  postId           String?          @db.Uuid
+  commentId        String?          @db.Uuid
+  actorUsername    String           @db.VarChar(30)
+  actorDisplayName String           @db.VarChar(60)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  readAt           DateTime?        @db.Timestamptz(3)
+  recipient        User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor            User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post             Post?            @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment          Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
 
   @@index([recipientId, createdAt, id])
   @@map("notifications")

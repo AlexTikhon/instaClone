@@ -1,5 +1,26 @@
 # Security
 
+## Story controls (Phase 6)
+
+The create schema accepts only `mediaAssetId`; author identity comes from the authenticated session,
+and PostgreSQL sets the lifetime. Media verifies actor ownership, READY state, and IMAGE kind before
+creation. The maximum of 100 simultaneously active Stories is serialized per author with a
+transaction-scoped advisory lock, preventing concurrent requests from bypassing the count.
+
+One Stories access policy is embedded in tray, sequence, direct read, and view-recording SQL. It
+excludes soft-deleted/expired Stories, disabled or profile-less authors, either-direction blocks, and
+private authors without an accepted follow. Tray adds self-or-followed membership. UUID knowledge
+does not bypass policy and inaccessible reads return `STORY_NOT_FOUND`.
+
+`PUT /stories/:id/view` derives the viewer from authentication and conditionally inserts only from an
+active visible Story query. Database uniqueness makes retries and multiple tabs idempotent, and the
+author cannot create a self-view row. Viewer lists predicate ownership on the authenticated author,
+hide foreign/missing IDs identically, omit disabled viewer identities, paginate, and never expose
+email or security fields. Expired/deleted retained rows remain author-inspectable but accept no new
+views. Existing CSRF and verified-email guards protect Story mutations. General authenticated
+content-mutation rate limiting remains a future platform hardening item; the active Story cap bounds
+creation payload growth now.
+
 ## Notification and realtime controls (Phase 5)
 
 Notification reads and updates always predicate on the current authenticated user. Foreign IDs are

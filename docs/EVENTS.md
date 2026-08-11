@@ -1,5 +1,18 @@
 # Events and asynchronous work
 
+## Phase 6 Story event and retention work
+
+Story creation commits `Story` and `STORY_CREATED` OutboxEvent atomically. Version 1 contains only
+`storyId`, `authorId`, `mediaAssetId`, and `expiresAt`; it carries no signed URL or image content.
+The current worker validates the event as a no-op foundation for future analytics/moderation. Story
+views remain relational state and do not emit one event per view, avoiding a high-volume event stream
+without a Phase 6 consumer. Story creation intentionally creates no user notification.
+
+The worker also runs an hourly idempotent retention statement for records at least 30 days beyond
+expiration. Visibility never depends on this schedule. Operational logs use story, author, viewer,
+event, and correlation identifiers only. Candidate future metrics are `stories_created_total`,
+`story_views_total`, and Story tray latency; Phase 6 adds structured logs but no metrics stack.
+
 ## Phase 5 notification projection
 
 The domain queue additionally carries version-1 `USER_FOLLOWED` and `FOLLOW_REQUESTED` events:

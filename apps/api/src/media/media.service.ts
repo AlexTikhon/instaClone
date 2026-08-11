@@ -39,6 +39,8 @@ export type PostableMediaAsset = Pick<
   | 'thumbnailObjectKey'
 >;
 
+export type StoryMediaAsset = PostableMediaAsset;
+
 @Injectable()
 export class MediaService {
   constructor(
@@ -193,6 +195,28 @@ export class MediaService {
       if (!asset) throw new Error('Validated media asset is missing');
       return asset;
     });
+  }
+
+  async requireOwnedReadyForStory(ownerId: string, mediaId: string): Promise<StoryMediaAsset> {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaId } });
+    if (asset?.ownerId !== ownerId) {
+      throw new ApiError(
+        HttpStatus.FORBIDDEN,
+        'STORY_MEDIA_NOT_OWNED',
+        'Story media is not owned by this account',
+      );
+    }
+    if (asset.status !== 'READY') {
+      throw new ApiError(HttpStatus.CONFLICT, 'STORY_MEDIA_NOT_READY', 'Story media is not ready');
+    }
+    if (asset.kind !== 'IMAGE') {
+      throw new ApiError(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_STORY_MEDIA',
+        'Only image Stories are supported',
+      );
+    }
+    return asset;
   }
 
   toResponse(asset: PostableMediaAsset): Promise<MediaResponse>;

@@ -19,6 +19,7 @@ import { EngagementModule } from './engagement/engagement.module';
 import { FeedModule } from './feed/feed.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     FeedModule,
     NotificationsModule,
     RealtimeModule,
+    StoriesModule,
     OutboxModule,
     HealthModule,
   ],

@@ -89,6 +89,7 @@ describe.runIf(postgresEnabled)('media and posts PostgreSQL integration', () => 
       select: { id: true, mediaAssets: { select: { id: true } }, posts: { select: { id: true } } },
     });
     const aggregateIds = users.flatMap((user) => [
+      user.id,
       ...user.mediaAssets.map((media) => media.id),
       ...user.posts.map((post) => post.id),
     ]);

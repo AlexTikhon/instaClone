@@ -103,6 +103,163 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
+.createStory {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.storyTray,
+.storyTrayState {
+  display: flex;
+  min-height: 118px;
+  gap: 14px;
+  overflow-x: auto;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(21, 21, 21, 0.92);
+}
+
+.storyTrayLoading {
+  background: linear-gradient(100deg, #151515 30%, #24211f 50%, #151515 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.storyTrayState {
+  justify-content: space-between;
+}
+
+.storyTrayItem {
+  display: grid;
+  flex: 0 0 76px;
+  justify-items: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 3px;
+  font-size: 0.72rem;
+}
+
+.storyTrayItem > span:last-child {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storyAvatar {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border: 3px solid var(--line);
+  border-radius: 50%;
+  background: #292522;
+  font-size: 1.15rem;
+}
+
+.storyTrayItem.unseen .storyAvatar {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px #0d0d0d inset;
+}
+
+.storyTrayItem.seen {
+  color: var(--muted);
+}
+
+.storyViewerBackdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.storyViewer {
+  display: grid;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 40px);
+  gap: 14px;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #101010;
+}
+
+.storyProgress {
+  display: flex;
+  gap: 4px;
+}
+
+.storyProgress span {
+  height: 3px;
+  flex: 1;
+  border-radius: 999px;
+  background: #4a4742;
+}
+
+.storyProgress span.complete {
+  background: var(--ink);
+}
+
+.storyViewerHeader,
+.storyViewerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.storyViewerHeader div {
+  display: grid;
+  gap: 2px;
+}
+
+.storyViewerHeader span,
+.storyViewers small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.storyImage {
+  width: 100%;
+  height: min(68vh, 680px);
+  border-radius: 8px;
+  object-fit: contain;
+  background: #050505;
+}
+
+.storyViewerActions {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.storyViewers {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.storyViewers ul {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.storyViewers li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .discoverUser {
   margin-top: 32px;
   padding-top: 24px;

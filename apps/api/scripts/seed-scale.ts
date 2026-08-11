@@ -13,6 +13,7 @@ const uuid = (namespace: number, value: number): string =>
 
 const USER_COUNT = 100;
 const POSTS_PER_USER = 10;
+const STORIES_PER_USER = 30;
 
 const run = async () => {
   const userIds = Array.from({ length: USER_COUNT }, (_, index) => uuid(0x5ca1e001, index + 1));
@@ -89,8 +90,54 @@ const run = async () => {
       })),
     ),
   });
+  const seededAt = new Date();
+  const stories = userIds.flatMap((authorId, userIndex) =>
+    Array.from({ length: STORIES_PER_USER }, (_, storyIndex) => {
+      const value = userIndex * STORIES_PER_USER + storyIndex + 1;
+      const active = storyIndex < STORIES_PER_USER / 2;
+      const createdAt = new Date(
+        seededAt.getTime() - (active ? storyIndex + 1 : storyIndex + 30) * 60 * 60 * 1_000,
+      );
+      return {
+        id: uuid(0x5ca1e006, value),
+        authorId,
+        mediaAssetId: uuid(0x5ca1e005, value),
+        createdAt,
+        expiresAt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1_000),
+        deletedAt: storyIndex % 14 === 0 ? seededAt : null,
+      };
+    }),
+  );
+  await prisma.mediaAsset.createMany({
+    data: stories.map((item, index) => ({
+      id: item.mediaAssetId,
+      ownerId: item.authorId,
+      kind: 'IMAGE' as const,
+      objectKey: `scale/stories/${index + 1}/original`,
+      thumbnailObjectKey: `scale/stories/${index + 1}/thumb-640`,
+      declaredMimeType: 'image/jpeg',
+      declaredSizeBytes: 1024,
+      verifiedSizeBytes: 1024,
+      width: 640,
+      height: 800,
+      status: 'READY' as const,
+    })),
+  });
+  await prisma.story.createMany({ data: stories });
+  await prisma.storyView.createMany({
+    data: stories
+      .filter((item) => item.expiresAt > seededAt && item.deletedAt === null)
+      .flatMap((item, index) =>
+        Array.from({ length: index % 2 === 0 ? 5 : 0 }, (_, offset) => ({
+          storyId: item.id,
+          viewerId: userIds[(index + offset + 1) % USER_COUNT]!,
+          viewedAt: new Date(item.createdAt.getTime() + (offset + 1) * 60_000),
+        })),
+      ),
+    skipDuplicates: true,
+  });
   process.stdout.write(
-    `Seeded ${USER_COUNT} users, ${posts.length} posts, 2,000 follows, 5,000 likes, and 2,000 comments.\n`,
+    `Seeded ${USER_COUNT} users, ${posts.length} posts, ${stories.length} Stories, 2,000 follows, 5,000 likes, and 2,000 comments.\n`,
   );
 };
 

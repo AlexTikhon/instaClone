@@ -1,9 +1,8 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 5 adds durable recipient-owned notifications, notification-producing Social Graph
-events, native authenticated WebSockets, Redis Pub/Sub fan-out, reconnect recovery, and TanStack
-Query notification UX to the Phase 4 feed and engagement foundation.
+monolith. Phase 6 adds independent 24-hour image Stories, viewer state, unseen-first author grouping,
+durable idempotent views, and retention cleanup to the Phase 5 notification and realtime foundation.
 
 ## Prerequisites
 

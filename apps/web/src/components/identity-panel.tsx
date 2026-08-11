@@ -16,6 +16,7 @@ import {
 import { CreatePostForm } from '../features/create-post/create-post-form';
 import { AuthenticatedContent } from '../features/notifications/authenticated-content';
 import { DiscoverUser } from '../features/follow-user/discover-user';
+import { CreateStoryForm } from '../features/create-story/create-story-form';
 
 type Mode = 'login' | 'register';
 
@@ -174,6 +175,7 @@ export function IdentityPanel() {
             </button>
           </form>
           <CreatePostForm emailVerified={user.emailVerified} />
+          <CreateStoryForm emailVerified={user.emailVerified} />
           <DiscoverUser emailVerified={user.emailVerified} />
         </section>
         <AuthenticatedContent />

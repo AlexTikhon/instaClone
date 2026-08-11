@@ -1,5 +1,37 @@
 # Database
 
+## Stories
+
+`stories` stores independent authored content with exactly one MediaAsset reference, `createdAt`,
+server-derived `expiresAt`, and nullable `deletedAt`. The database check requires expiration after
+creation. The reference is intentionally reusable: PostMedia's existing one-post constraint remains,
+while a READY immutable asset may also back retained Stories. Media ownership/status/kind are checked
+through Media before Story creation; the Story foreign key prevents a missing asset.
+
+`story_views` uses `(storyId, viewerId)` as its primary key. View recording uses
+`INSERT ... ON CONFLICT DO UPDATE SET viewedAt = story_views.viewedAt RETURNING viewedAt`; the no-op
+conflict update makes concurrent tabs return the durable original time without changing it. Author
+self-views skip insertion. Thus `viewedAt` means first viewed, not latest viewed.
+
+Indexes follow the actual reads:
+
+- `(authorId, expiresAt, createdAt, id)` supports an author's active oldest-first playback scan and
+  active-count guard;
+- `(expiresAt, authorId)` supports the active tray/expiration window and 30-day retention scan;
+- the StoryView primary key supports idempotent writes and tray unseen membership;
+- `(viewerId, storyId)` lets the tray isolate one viewer's seen rows before joining active Stories;
+- `(storyId, viewedAt, viewerId)` supports author-owned descending viewer keyset pages.
+
+Public visibility is 24 hours. Rows and views remain for 30 days after expiration so the author can
+inspect viewers and developers can diagnose behavior. The worker then hard-deletes them; cascading
+removes StoryViews, while MediaAsset records and objects are retained for a future shared policy.
+
+On the development scale seed (100 users, 3,000 Stories, 3,250 StoryViews, and 2,000 follows), the
+representative tray plan used the expiration/author Story index, follow primary key, block indexes,
+and `(viewerId, storyId)` index. PostgreSQL 17 returned 21 author groups in about 1.05 ms with 27 KiB
+for the final sort. The earlier plan without the viewer-first index scanned StoryViews and took about
+1.18 ms at this small scale; the index prevents that cost from growing with all users' view history.
+
 ## Notifications
 
 `notifications` is the durable user-facing consequence of social domain events. It stores the

@@ -5,6 +5,7 @@ import { HomeFeed } from './home-feed';
 
 const feed = vi.hoisted(() => ({ useFeed: vi.fn() }));
 vi.mock('./use-feed', () => ({ useFeed: feed.useFeed }));
+vi.mock('../stories/story-tray', () => ({ StoryTray: () => <div>Story tray</div> }));
 
 describe('HomeFeed', () => {
   it('renders loading and empty states', () => {

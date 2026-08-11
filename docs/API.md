@@ -1,5 +1,28 @@
 # API
 
+## Stories
+
+All actor/viewer identity comes from the authenticated cookie session. Creation accepts the strict
+body `{ "mediaAssetId": "uuid" }`; author and expiration are never client fields.
+
+| Method | Path                                   | Behavior                                                     |
+| ------ | -------------------------------------- | ------------------------------------------------------------ |
+| POST   | `/api/v1/stories`                      | Create a 24-hour image Story from owned READY media          |
+| GET    | `/api/v1/stories`                      | Unseen-first self/following author tray (maximum 100 groups) |
+| GET    | `/api/v1/stories/users/:authorId`      | Active visible author sequence, oldest-first                 |
+| GET    | `/api/v1/stories/:storyId`             | One active visible Story                                     |
+| PUT    | `/api/v1/stories/:storyId/view`        | Idempotently record the authenticated viewer's first view    |
+| DELETE | `/api/v1/stories/:storyId`             | Soft-delete an owned Story                                   |
+| GET    | `/api/v1/stories/:storyId/viewers?...` | Author-only retained viewer page, newest-first               |
+
+Viewer pages use opaque `(viewedAt, viewerId)` cursors and return `{ viewers, nextCursor, hasMore }`.
+Each viewer exposes only id, username, display name, and viewed time. An author may inspect viewers
+after expiration or manual deletion while the Story record is in 30-day retention. Public/direct
+Story reads and new views stop immediately at deletion or expiration. Missing, inaccessible,
+private, blocked, disabled-author, foreign viewer-list, and expired public identifiers all use
+`STORY_NOT_FOUND`. Cursor failures use `INVALID_STORY_CURSOR`; creation may use
+`STORY_MEDIA_NOT_OWNED`, `STORY_MEDIA_NOT_READY`, `INVALID_STORY_MEDIA`, or `STORY_LIMIT_REACHED`.
+
 ## Notifications
 
 All notification ownership comes from the authenticated access-cookie session; no endpoint accepts a
