@@ -32,12 +32,29 @@ development.
 Profile writes are available only at `/profiles/me`, with ownership derived from the verified
 session. Browser-provided identity fields are rejected by strict request schemas.
 
-## Upload plan (Phase 3)
+## Media and post controls (Phase 3)
 
-The API will issue short-lived presigned uploads after checking authenticated policy, declared MIME
-type, size, and object-key ownership. Finalization must verify the stored object rather than trusting
-client metadata. Media workers decode content defensively, bound FFmpeg resources, and write derived
-variants to separate keys. Object buckets remain non-public; delivery uses controlled URLs/CDN policy.
+The API issues five-minute presigned PUTs only after authenticated/verified-email policy and strict
+declared MIME/size checks. It generates both `userId` and
+`users/{userId}/media/{mediaId}/original`; the browser controls neither ownership nor a key segment.
+Phase 3 accepts only JPEG, PNG, and WebP declarations up to 10 MiB. SVG and video processing are not
+accepted.
+
+Finalization resolves the owned database asset and HEADs that exact key. Object existence, positive
+bounded size, exact authorized size, and stored Content-Type must match before `UPLOADED`. This
+metadata is verified storage metadata, not decoded truth: S3 Content-Type can still originate from
+the upload request. Only the worker's magic-byte decode establishes format, width, and height.
+
+Workers bound compressed bytes, decoded pixels (40 million), each dimension (12,000), accepted
+formats, and thumbnail dimensions. Originals are immutable; WebP thumbnails use a separate
+deterministic key. Invalid bytes transition to a safe operational failure code, while storage and
+database outages retry. MinIO's server-level CORS allowlist explicitly names the local web origin
+(production must inject its own allowlist), and responses receive
+short-lived signed GET URLs; credentials and raw storage keys are never API response fields.
+
+Posts require actor-owned `READY` and unattached assets. Disabled authors, soft-deleted posts,
+private-account follow policy, and blocks in either direction are checked on reads. Inaccessible
+content returns the same `POST_NOT_FOUND` response to avoid disclosing block/private state.
 
 ## Account security controls (Phase 1.1)
 
@@ -70,4 +87,6 @@ and composite primary keys keep retries idempotent and prevent duplicate edges.
 ## Outstanding hardening
 
 MFA, session-management UI, content security policy tuning, adaptive/breached-password checks, and
-broader abuse controls remain outstanding.
+broader abuse controls remain outstanding. Malware scanning, abandoned-upload garbage collection,
+signed-URL CDN delivery, EXIF stripping policy beyond the generated thumbnail, video validation and
+transcoding, and production bucket lifecycle rules remain intentionally postponed.

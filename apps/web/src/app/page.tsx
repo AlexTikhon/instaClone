@@ -11,10 +11,10 @@ export default async function HomePage() {
     <main className="shell">
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">Identity foundation · Phase 1</p>
-        <h1 id="page-title">Your profile starts with a secure session.</h1>
+        <h1 id="page-title">Turn a secure identity into a real post.</h1>
         <p className="lede">
-          Register, return, and shape your public identity through credential and session boundaries
-          designed to remain understandable as the product grows.
+          Authenticate, upload directly to protected object storage, and publish an image only after
+          the platform has verified and processed it.
         </p>
         <PlatformStatus apiStatus={apiStatus} />
       </section>

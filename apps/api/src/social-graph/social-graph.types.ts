@@ -8,3 +8,13 @@ export interface IncomingFollowRequest {
   requester: Profile;
   createdAt: Date;
 }
+
+export interface FollowRequestCursor {
+  createdAt: Date;
+  requesterId: string;
+}
+
+export interface IncomingFollowRequestPage {
+  requests: IncomingFollowRequest[];
+  nextCursor: FollowRequestCursor | null;
+}

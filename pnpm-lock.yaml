@@ -69,6 +69,9 @@ importers:
       '@prisma/client':
         specifier: 7.9.1
         version: 7.9.1(prisma@7.9.1(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(magicast@0.5.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
+      bullmq:
+        specifier: 6.0.9
+        version: 6.0.9(ioredis@6.0.0(supports-color@7.2.0))(pg@8.23.0)
       cookie-parser:
         specifier: 1.4.7
         version: 1.4.7
@@ -188,6 +191,12 @@ importers:
 
   apps/workers:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: 3.1106.0
+        version: 3.1106.0
+      '@instaclone/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
       '@instaclone/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -197,13 +206,22 @@ importers:
       ioredis:
         specifier: 6.0.0
         version: 6.0.0(supports-color@7.2.0)
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
       pino:
         specifier: 10.3.1
         version: 10.3.1
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@26.2.0)
       zod:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/pg':
+        specifier: 8.21.0
+        version: 8.21.0
       '@vitest/coverage-v8':
         specifier: 4.1.10
         version: 4.1.10(vitest@4.1.10)
@@ -4849,8 +4867,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.3':
     optionalDependencies:
@@ -8167,7 +8184,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.3
       '@img/sharp-win32-x64': 0.35.3
       '@types/node': 26.2.0
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

@@ -28,6 +28,7 @@ export {
 } from './identity-contracts';
 export {
   followRequestSchema,
+  followRequestsQuerySchema,
   followRequestsResponseSchema,
   socialConnectionResponseSchema,
   socialConnectionStateSchema,
@@ -36,9 +37,51 @@ export {
 export type {
   FollowRequest,
   FollowRequestsResponse,
+  FollowRequestsQuery,
   SocialConnectionResponse,
   SocialConnectionState,
 } from './social-contracts';
+export {
+  finalizeMediaUploadInputSchema,
+  initializeMediaUploadInputSchema,
+  MAX_IMAGE_UPLOAD_BYTES,
+  mediaAssetStatusSchema,
+  mediaKindSchema,
+  mediaResponseSchema,
+  SUPPORTED_IMAGE_MIME_TYPES,
+  uploadInitializationResponseSchema,
+} from './media-contracts';
+export type {
+  InitializeMediaUploadInput,
+  MediaAssetStatus,
+  MediaResponse,
+  UploadInitializationResponse,
+} from './media-contracts';
+export {
+  createPostInputSchema,
+  listPostsQuerySchema,
+  paginatedPostsResponseSchema,
+  postIdSchema,
+  postMediaResponseSchema,
+  postResponseSchema,
+} from './post-contracts';
+export type {
+  CreatePostInput,
+  ListPostsQuery,
+  PaginatedPostsResponse,
+  PostResponse,
+} from './post-contracts';
+export {
+  DOMAIN_EVENTS_QUEUE,
+  eventEnvelopeSchema,
+  MEDIA_UPLOADED_EVENT,
+  mediaUploadedEventSchema,
+  mediaUploadedPayloadSchema,
+  POST_CREATED_EVENT,
+  postCreatedEventSchema,
+  postCreatedPayloadSchema,
+} from './event-contracts';
+export type { EventEnvelope, MediaUploadedEvent, PostCreatedEvent } from './event-contracts';
 export type {
   AcceptedResponse,
   AuthenticatedUser,

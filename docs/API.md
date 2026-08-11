@@ -53,7 +53,7 @@ comes from the access session; request bodies cannot select a follower, request 
 | ------ | ---------------------------------------------------- | -------------------------------------------- |
 | POST   | `/api/v1/social/follows/:targetId`                   | Follow publicly or request a private account |
 | DELETE | `/api/v1/social/follows/:targetId`                   | Unfollow or cancel an outgoing request       |
-| GET    | `/api/v1/social/follow-requests`                     | List the caller's incoming requests          |
+| GET    | `/api/v1/social/follow-requests?limit=&cursor=`      | Cursor-page the caller's incoming requests   |
 | POST   | `/api/v1/social/follow-requests/:requesterId/accept` | Accept an incoming request                   |
 | DELETE | `/api/v1/social/follow-requests/:requesterId`        | Decline an incoming request                  |
 | POST   | `/api/v1/social/blocks/:targetId`                    | Block a user and remove relationships        |
@@ -62,6 +62,38 @@ comes from the access session; request bodies cannot select a follower, request 
 Follow and block operations are idempotent. A follow response is either `following` or `requested`.
 Blocked relationships return the same unavailable response as an inaccessible target so block state
 is not disclosed.
+
+Incoming request pages are bounded to 50 and ordered by `(createdAt DESC, requesterId DESC)`. The
+opaque response cursor contains both stable ordering fields. Acceptance rechecks that both accounts
+remain active/profile-backed and that no block now prevents the edge. Accept, decline, follow,
+unfollow, block, and unblock are retry-safe for their resulting state.
+
+## Media and Posts endpoints
+
+Media and post mutations require verified email, access cookie, and CSRF. Reads require an access
+session. No request accepts an owner/author user ID for a mutation.
+
+| Method | Path                              | Purpose                                             |
+| ------ | --------------------------------- | --------------------------------------------------- |
+| POST   | `/api/v1/media/uploads`           | Authorize a bounded image and return a signed PUT   |
+| POST   | `/api/v1/media/:mediaId/finalize` | HEAD-verify the owned object and queue processing   |
+| GET    | `/api/v1/media/:mediaId`          | Poll the caller's media lifecycle                   |
+| POST   | `/api/v1/posts`                   | Atomically create an authored post and outbox event |
+| GET    | `/api/v1/posts/:postId`           | Read one visible post                               |
+| GET    | `/api/v1/posts?authorId=&...`     | Cursor-page one visible author timeline             |
+
+Upload initialization accepts only strict `{ kind, mimeType, sizeBytes }` input. Phase 3 accepts
+JPEG, PNG, and WebP images up to 10 MiB. The response includes a five-minute PUT URL and required
+headers but never an object key or credential. Finalization accepts only an empty strict object.
+
+Post creation accepts a caption of at most 2,200 characters and one to ten unique media asset IDs.
+Every asset must be owned by the actor, `READY`, and unattached. Author timelines use
+`(createdAt DESC, id DESC)` keyset pagination and do not represent a feed. Deleted posts, disabled
+authors, blocks in either direction, and private-account follow policy are enforced.
+
+Phase 3-specific codes include `MEDIA_NOT_FOUND`, `MEDIA_NOT_OWNED`, `MEDIA_NOT_READY`,
+`MEDIA_UPLOAD_INVALID`, `INVALID_POST_MEDIA`, and `POST_NOT_FOUND`. Storage keys, worker failure
+details, and signed URL internals are not API fields.
 
 All responses include `X-Request-ID`. A valid incoming value is propagated; invalid or missing values
 are replaced.
@@ -83,6 +115,10 @@ details may later appear in `details` but must not contain secrets or internal s
 
 ## Pagination policy
 
-Feed, comments, follower lists, notifications, and messages will use opaque cursors backed by a stable
+Posts and follow requests use opaque cursors now. Feed, comments, follower lists, notifications, and messages will use opaque cursors backed by a stable
 ordering such as `(createdAt, id)`. Cursor internals are not a client contract and may be signed or
 versioned later.
+
+Relationship-state, follower/following-count, and follower/following-list HTTP read models are
+intentionally postponed. Phase 3 needs only an internal Social Graph visibility decision for post
+reads; adding broader graph APIs now would create unused contracts.

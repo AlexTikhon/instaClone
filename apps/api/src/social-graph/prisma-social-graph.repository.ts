@@ -9,7 +9,8 @@ import type {
   AcceptRequestResult,
   BlockResult,
   FollowResult,
-  IncomingFollowRequest,
+  IncomingFollowRequestPage,
+  FollowRequestCursor,
 } from './social-graph.types';
 
 const toProfile = (profile: Profile): Profile => ({
@@ -68,26 +69,60 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
     });
   }
 
-  async listIncomingRequests(targetId: string): Promise<IncomingFollowRequest[]> {
+  async listIncomingRequests(
+    targetId: string,
+    limit: number,
+    cursor: FollowRequestCursor | null,
+  ): Promise<IncomingFollowRequestPage> {
     const requests = await this.prisma.followRequest.findMany({
-      where: { targetId },
-      orderBy: { createdAt: 'desc' },
+      where: {
+        targetId,
+        requester: { disabledAt: null, profile: { isNot: null } },
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                { createdAt: cursor.createdAt, requesterId: { lt: cursor.requesterId } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { requesterId: 'desc' }],
+      take: limit + 1,
       include: { requester: { include: { profile: true } } },
     });
-    return requests.flatMap((request) =>
+    const hasNextPage = requests.length > limit;
+    const page = requests.slice(0, limit);
+    const mapped = page.flatMap((request) =>
       request.requester.profile
         ? [{ requester: toProfile(request.requester.profile), createdAt: request.createdAt }]
         : [],
     );
+    const last = hasNextPage ? page.at(-1) : undefined;
+    return {
+      requests: mapped,
+      nextCursor: last ? { createdAt: last.createdAt, requesterId: last.requesterId } : null,
+    };
   }
 
   acceptRequest(targetId: string, requesterId: string): Promise<AcceptRequestResult> {
     return this.runSerializable(async (transaction) => {
+      const users = await transaction.user.findMany({
+        where: { id: { in: [targetId, requesterId] }, disabledAt: null, profile: { isNot: null } },
+        select: { id: true },
+      });
+      if (users.length !== 2) return 'not_found';
+      if (await this.hasBlock(transaction, requesterId, targetId)) return 'blocked';
+
       const request = await transaction.followRequest.findUnique({
         where: { requesterId_targetId: { requesterId, targetId } },
       });
-      if (!request) return 'not_found';
-      if (await this.hasBlock(transaction, requesterId, targetId)) return 'blocked';
+      if (!request) {
+        const existing = await transaction.follow.findUnique({
+          where: { followerId_followingId: { followerId: requesterId, followingId: targetId } },
+        });
+        return existing ? 'following' : 'not_found';
+      }
       await transaction.follow.upsert({
         where: { followerId_followingId: { followerId: requesterId, followingId: targetId } },
         create: { followerId: requesterId, followingId: targetId },
@@ -100,11 +135,10 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
     });
   }
 
-  async declineRequest(targetId: string, requesterId: string): Promise<boolean> {
-    const result = await this.prisma.followRequest.deleteMany({
+  async declineRequest(targetId: string, requesterId: string): Promise<void> {
+    await this.prisma.followRequest.deleteMany({
       where: { requesterId, targetId },
     });
-    return result.count === 1;
   }
 
   block(actorId: string, targetId: string): Promise<BlockResult> {
@@ -144,8 +178,23 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
     await this.prisma.block.deleteMany({ where: { blockerId: actorId, blockedId: targetId } });
   }
 
+  async canViewPosts(viewerId: string, authorId: string): Promise<boolean> {
+    const author = await this.prisma.user.findFirst({
+      where: { id: authorId, disabledAt: null },
+      select: { profile: { select: { isPrivate: true } } },
+    });
+    if (!author?.profile) return false;
+    if (await this.hasBlock(this.prisma, viewerId, authorId)) return false;
+    if (viewerId === authorId || !author.profile.isPrivate) return true;
+    return (
+      (await this.prisma.follow.count({
+        where: { followerId: viewerId, followingId: authorId },
+      })) > 0
+    );
+  }
+
   private async hasBlock(
-    transaction: Prisma.TransactionClient,
+    transaction: Prisma.TransactionClient | PrismaService,
     firstUserId: string,
     secondUserId: string,
   ): Promise<boolean> {

@@ -18,8 +18,9 @@ describe('social contracts', () => {
 
   it('rejects invalid actor identifiers and malformed request lists', () => {
     expect(socialUserIdSchema.safeParse('../me').success).toBe(false);
-    expect(followRequestsResponseSchema.safeParse({ requests: [{ requester: {} }] }).success).toBe(
-      false,
-    );
+    expect(
+      followRequestsResponseSchema.safeParse({ requests: [{ requester: {} }], nextCursor: null })
+        .success,
+    ).toBe(false);
   });
 });

@@ -26,6 +26,8 @@ model User {
   incomingFollowRequests  FollowRequest[]           @relation("FollowTargetEdges")
   outgoingBlocks          Block[]                   @relation("BlockerEdges")
   incomingBlocks          Block[]                   @relation("BlockedEdges")
+  mediaAssets             MediaAsset[]
+  posts                   Post[]
 
   @@map("users")
 }
@@ -138,8 +140,86 @@ model FollowRequest {
   target      User     @relation("FollowTargetEdges", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@id([requesterId, targetId])
-  @@index([targetId, createdAt])
+  @@index([targetId, createdAt, requesterId])
   @@map("follow_requests")
+}
+
+model MediaAsset {
+  id                 String           @id @default(uuid()) @db.Uuid
+  ownerId            String           @db.Uuid
+  kind               MediaKind
+  objectKey          String           @unique @db.VarChar(512)
+  thumbnailObjectKey String?          @unique @db.VarChar(512)
+  declaredMimeType   String           @db.VarChar(128)
+  declaredSizeBytes  Int
+  verifiedSizeBytes  Int?
+  width              Int?
+  height             Int?
+  durationMs         Int?
+  status             MediaAssetStatus @default(PENDING_UPLOAD)
+  failureCode        String?          @db.VarChar(64)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+  owner              User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  postMedia          PostMedia?
+
+  @@index([ownerId, createdAt])
+  @@index([status, updatedAt])
+  @@map("media_assets")
+}
+
+model Post {
+  id        String      @id @default(uuid()) @db.Uuid
+  authorId  String      @db.Uuid
+  caption   String      @default("") @db.VarChar(2200)
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime?   @db.Timestamptz(3)
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media     PostMedia[]
+
+  @@index([authorId, createdAt, id])
+  @@map("posts")
+}
+
+model PostMedia {
+  postId       String     @db.Uuid
+  mediaAssetId String     @unique @db.Uuid
+  position     Int
+  post         Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@id([postId, mediaAssetId])
+  @@unique([postId, position])
+  @@map("post_media")
+}
+
+model OutboxEvent {
+  eventId       String   @id @default(uuid()) @db.Uuid
+  eventName     String   @db.VarChar(128)
+  eventVersion  Int
+  aggregateType String   @db.VarChar(64)
+  aggregateId   String   @db.Uuid
+  occurredAt    DateTime @default(now()) @db.Timestamptz(3)
+  correlationId String   @db.VarChar(128)
+  payload       Json
+  publishedAt   DateTime? @db.Timestamptz(3)
+  lockedAt      DateTime? @db.Timestamptz(3)
+  lockedBy      String?   @db.VarChar(128)
+  attemptCount  Int       @default(0)
+  lastError     String?   @db.VarChar(512)
+
+  @@index([publishedAt, lockedAt, occurredAt])
+  @@map("outbox_events")
+}
+
+model ConsumerEventReceipt {
+  eventId     String   @db.Uuid
+  consumerName String  @db.VarChar(128)
+  processedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([eventId, consumerName])
+  @@map("consumer_event_receipts")
 }
 
 model Block {
@@ -174,4 +254,17 @@ enum SessionRevokeReason {
   PASSWORD_CHANGE
   SECURITY_EVENT
   ACCOUNT_DISABLED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum MediaAssetStatus {
+  PENDING_UPLOAD
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
 }

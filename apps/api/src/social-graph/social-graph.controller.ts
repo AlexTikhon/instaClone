@@ -1,7 +1,18 @@
-import { Controller, Delete, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 
 import {
   socialUserIdSchema,
+  followRequestsQuerySchema,
   type FollowRequestsResponse,
   type SocialConnectionResponse,
 } from '@instaclone/api-contracts';
@@ -39,8 +50,14 @@ export class SocialGraphController {
 
   @Get('follow-requests')
   @UseGuards(AccessAuthGuard, VerifiedEmailGuard)
-  incomingRequests(@Req() request: AuthenticatedRequest): Promise<FollowRequestsResponse> {
-    return this.socialGraph.incomingRequests(request.identity.id);
+  incomingRequests(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: unknown,
+  ): Promise<FollowRequestsResponse> {
+    return this.socialGraph.incomingRequests(
+      request.identity.id,
+      parseRequest(followRequestsQuerySchema, query),
+    );
   }
 
   @Post('follow-requests/:requesterId/accept')

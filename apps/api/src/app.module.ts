@@ -12,6 +12,9 @@ import { RedisModule } from './infrastructure/redis/redis.module';
 import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
 import { ProfilesModule } from './profiles/profiles.module';
 import { SocialGraphModule } from './social-graph/social-graph.module';
+import { MediaModule } from './media/media.module';
+import { OutboxModule } from './outbox/outbox.module';
+import { PostsModule } from './posts/posts.module';
 
 @Module({
   imports: [
@@ -34,6 +37,9 @@ import { SocialGraphModule } from './social-graph/social-graph.module';
     AuthModule,
     ProfilesModule,
     SocialGraphModule,
+    MediaModule,
+    PostsModule,
+    OutboxModule,
     HealthModule,
   ],
 })

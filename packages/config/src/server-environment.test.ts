@@ -52,4 +52,15 @@ describe('server environment', () => {
     });
     expect(parsed.AUTH_COOKIE_SECURE).toBe(true);
   });
+
+  it('requires durable and object-storage dependencies for workers', async () => {
+    const { parseWorkerEnvironment } = await import('./server-environment');
+    expect(() => parseWorkerEnvironment({ REDIS_URL: 'redis://localhost:6379' })).toThrow();
+    expect(
+      parseWorkerEnvironment({
+        ...validEnvironment,
+        WORKER_CONCURRENCY: '2',
+      }).WORKER_CONCURRENCY,
+    ).toBe(2);
+  });
 });

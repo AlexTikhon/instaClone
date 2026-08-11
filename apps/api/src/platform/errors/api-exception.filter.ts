@@ -45,6 +45,17 @@ const exceptionMessage = (exception: unknown, status: number): string => {
   return 'Request could not be completed';
 };
 
+const exceptionCode = (exception: unknown, status: number): string => {
+  if (exception instanceof HttpException) {
+    const response = exception.getResponse();
+    if (typeof response === 'object' && response !== null && 'code' in response) {
+      const code = response.code;
+      if (typeof code === 'string' && /^[A-Z][A-Z0-9_]{1,63}$/.test(code)) return code;
+    }
+  }
+  return statusCodeName(status);
+};
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -56,7 +67,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     const body: ErrorEnvelope = {
       error: {
-        code: statusCodeName(status),
+        code: exceptionCode(exception, status),
         message: exceptionMessage(exception, status),
         requestId: request.id ?? 'unknown',
       },

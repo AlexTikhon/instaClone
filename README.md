@@ -1,8 +1,8 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 2 adds a transactional Social Graph—public follows, private-account requests, and
-blocking—to the verified authentication, session-security, and owned-profile foundation.
+monolith. Phase 3 adds secure direct image uploads, bounded asynchronous processing, authored posts,
+cursor reads, and a transactional outbox to the authentication, profile, and Social Graph foundation.
 
 ## Prerequisites
 
@@ -15,11 +15,11 @@ blocking—to the verified authentication, session-security, and owned-profile f
 ```bash
 cp .env.example .env
 pnpm install
-docker compose up -d postgres redis minio minio-init
+docker compose up -d postgres redis minio minio-init mailpit
 pnpm dev
 ```
 
-Apply the committed database migration before first use:
+Apply the committed database migrations before first use:
 
 ```bash
 pnpm --filter @instaclone/api db:migrate:deploy
@@ -32,9 +32,12 @@ pnpm --filter @instaclone/api db:migrate:deploy
 - MinIO console: `http://localhost:9001`
 - Mailpit inbox: `http://localhost:8025`
 
-To run the complete containerized stack, use `docker compose up --build`.
-All published ports have overrides in `.env.example`, so local conflicts can be resolved without
-editing Compose.
+To run the complete containerized stack, use `docker compose up --build`. All published ports have
+overrides in `.env.example`, so local conflicts can be resolved without editing Compose.
+
+The create-post workflow needs the worker process (`pnpm --filter @instaclone/workers dev`) or the
+complete Compose stack. The browser uploads bytes directly to the signed MinIO URL; the API does not
+proxy file bodies.
 
 ## Validation
 

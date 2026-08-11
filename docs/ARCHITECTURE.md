@@ -5,7 +5,8 @@
 The application is an educational production-engineering system. Phase 0 established operational
 and architectural foundations. Phase 1 adds the first product boundary: authentication and profiles;
 Phase 1.1 hardens that boundary with recovery, verification, session controls, and audit history.
-Phase 2 introduces Social Graph as a separate application and persistence boundary.
+Phase 2 introduces Social Graph as a separate application and persistence boundary. Phase 3 adds
+separate Media and Posts modules and activates the transactional outbox plus the first product worker.
 The system remains a modular monolith with a separately scalable worker process.
 
 ## Runtime view
@@ -15,7 +16,7 @@ Browser -> Next.js web -> NestJS API -> PostgreSQL
                                |      -> Redis
                                +      -> S3-compatible storage (MinIO locally)
 
-Future committed outbox event -> dispatcher -> BullMQ/Redis -> workers
+Committed outbox event -> lease/claim dispatcher -> BullMQ/Redis -> workers -> PostgreSQL/S3
 ```
 
 PostgreSQL is the source of truth. Redis holds queue mechanics, caches, rate-limit state, and other
@@ -44,16 +45,31 @@ Social Graph owns directed follows, private-account requests, and blocks behind 
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge
 transitions such as block and request acceptance are serializable PostgreSQL transactions.
 
+Media owns asset identity, actor-derived ownership, generated storage keys, upload authorization,
+declared and verified object metadata, signed storage access, and the upload/processing lifecycle.
+Posts calls Media's public application service to require ordered, owned, unattached `READY` assets;
+it never calls S3 or queries Media persistence directly. Posts owns captions, lifecycle policy,
+visibility reads, and the atomic Post/PostMedia/OutboxEvent transaction.
+
+The API's outbox dispatcher is infrastructure, not a product module. It leases committed rows with
+`FOR UPDATE SKIP LOCKED`, publishes with `eventId` as the BullMQ job ID, and marks a row published
+only after queue acknowledgement. Stale leases are reclaimable. A crash after queue publication but
+before the database mark can duplicate delivery, so worker effects remain idempotent.
+
+The web application evolves incrementally: the identity UI remains, while the used create-post
+feature lives under `features/create-post`, media/post calls under `entities`, and the shared browser
+HTTP boundary under `shared/api`. No empty architecture scaffolding was introduced.
+
 ## Request lifecycle
 
 The HTTP logger accepts a bounded, character-restricted `X-Request-ID` or generates a UUID. It
 returns that ID in the response, associates it with structured request logs, and places it in the
 stable error envelope. Incoming secrets and authentication headers are redacted.
 
-Future asynchronous commands/events must contain `correlationId`, `eventId`, `occurredAt`, event
-name, version, and payload. Consumers must use `eventId` for idempotency and retain correlation
-context in logs. The Phase 0 probe job demonstrates envelope validation only; it is not a product
-event.
+Asynchronous commands/events contain `correlationId`, `eventId`, `occurredAt`, event
+name, version, aggregate identity, and payload. Consumers use `eventId` for idempotency and retain
+correlation context in logs. The Phase 0 probe remains a boundary check. `MEDIA_UPLOADED` drives
+bounded image decoding and thumbnail creation; `POST_CREATED` is the first durable post event.
 
 ## Health model
 

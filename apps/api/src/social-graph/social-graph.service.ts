@@ -1,6 +1,12 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 
-import type { FollowRequestsResponse, SocialConnectionResponse } from '@instaclone/api-contracts';
+import { z } from 'zod';
+
+import type {
+  FollowRequestsQuery,
+  FollowRequestsResponse,
+  SocialConnectionResponse,
+} from '@instaclone/api-contracts';
 
 import { SOCIAL_GRAPH_REPOSITORY, type SocialGraphRepository } from './social-graph.repository';
 
@@ -24,13 +30,21 @@ export class SocialGraphService {
     return this.socialGraph.unfollow(actorId, targetId);
   }
 
-  async incomingRequests(targetId: string): Promise<FollowRequestsResponse> {
-    const requests = await this.socialGraph.listIncomingRequests(targetId);
+  async incomingRequests(
+    targetId: string,
+    query: FollowRequestsQuery,
+  ): Promise<FollowRequestsResponse> {
+    const page = await this.socialGraph.listIncomingRequests(
+      targetId,
+      query.limit,
+      query.cursor ? decodeCursor(query.cursor) : null,
+    );
     return {
-      requests: requests.map((request) => ({
+      requests: page.requests.map((request) => ({
         requester: request.requester,
         requestedAt: request.createdAt.toISOString(),
       })),
+      nextCursor: page.nextCursor ? encodeCursor(page.nextCursor) : null,
     };
   }
 
@@ -41,9 +55,7 @@ export class SocialGraphService {
   }
 
   async declineRequest(targetId: string, requesterId: string): Promise<void> {
-    if (!(await this.socialGraph.declineRequest(targetId, requesterId))) {
-      throw new NotFoundException('Follow request not found');
-    }
+    await this.socialGraph.declineRequest(targetId, requesterId);
   }
 
   async block(actorId: string, targetId: string): Promise<void> {
@@ -56,4 +68,27 @@ export class SocialGraphService {
     if (actorId === targetId) throw new BadRequestException('You cannot unblock yourself');
     return this.socialGraph.unblock(actorId, targetId);
   }
+
+  canViewPosts(viewerId: string, authorId: string): Promise<boolean> {
+    return this.socialGraph.canViewPosts(viewerId, authorId);
+  }
 }
+
+const cursorSchema = z.strictObject({
+  createdAt: z.iso.datetime(),
+  requesterId: z.uuid(),
+});
+
+const encodeCursor = (cursor: { createdAt: Date; requesterId: string }): string =>
+  Buffer.from(
+    JSON.stringify({ createdAt: cursor.createdAt.toISOString(), requesterId: cursor.requesterId }),
+  ).toString('base64url');
+
+const decodeCursor = (cursor: string): { createdAt: Date; requesterId: string } => {
+  try {
+    const decoded = cursorSchema.parse(JSON.parse(Buffer.from(cursor, 'base64url').toString()));
+    return { createdAt: new Date(decoded.createdAt), requesterId: decoded.requesterId };
+  } catch {
+    throw new BadRequestException('Invalid pagination cursor');
+  }
+};

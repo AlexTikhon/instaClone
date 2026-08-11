@@ -97,6 +97,32 @@ h1 {
   background: rgba(21, 21, 21, 0.88);
 }
 
+.createPost {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.mediaPreview,
+.createdPost img {
+  width: 100%;
+  height: auto;
+  max-height: 640px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: contain;
+  background: #090909;
+}
+
+.createdPost {
+  margin-top: 28px;
+}
+
+.identityForm progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
 .identityCard h2 {
   margin: 8px 0 24px;
   font-size: 1.8rem;

@@ -6,7 +6,8 @@ import type {
   AcceptRequestResult,
   BlockResult,
   FollowResult,
-  IncomingFollowRequest,
+  IncomingFollowRequestPage,
+  FollowRequestCursor,
 } from './social-graph.types';
 
 const pair = (first: string, second: string): string => `${first}:${second}`;
@@ -37,14 +38,17 @@ class InMemorySocialGraphRepository implements SocialGraphRepository {
     return Promise.resolve();
   }
 
-  listIncomingRequests(targetId: string): Promise<IncomingFollowRequest[]> {
-    return Promise.resolve(
-      [...this.requests.entries()].flatMap(([relationship, createdAt]) => {
-        const [requesterId, requestTargetId] = relationship.split(':');
-        const requester = requesterId ? this.profiles.get(requesterId) : undefined;
-        return requestTargetId === targetId && requester ? [{ requester, createdAt }] : [];
-      }),
-    );
+  listIncomingRequests(
+    targetId: string,
+    limit: number,
+    _cursor: FollowRequestCursor | null,
+  ): Promise<IncomingFollowRequestPage> {
+    const requests = [...this.requests.entries()].flatMap(([relationship, createdAt]) => {
+      const [requesterId, requestTargetId] = relationship.split(':');
+      const requester = requesterId ? this.profiles.get(requesterId) : undefined;
+      return requestTargetId === targetId && requester ? [{ requester, createdAt }] : [];
+    });
+    return Promise.resolve({ requests: requests.slice(0, limit), nextCursor: null });
   }
 
   acceptRequest(targetId: string, requesterId: string): Promise<AcceptRequestResult> {
@@ -56,8 +60,9 @@ class InMemorySocialGraphRepository implements SocialGraphRepository {
     return Promise.resolve('following');
   }
 
-  declineRequest(targetId: string, requesterId: string): Promise<boolean> {
-    return Promise.resolve(this.requests.delete(pair(requesterId, targetId)));
+  declineRequest(targetId: string, requesterId: string): Promise<void> {
+    this.requests.delete(pair(requesterId, targetId));
+    return Promise.resolve();
   }
 
   block(actorId: string, targetId: string): Promise<BlockResult> {
@@ -72,6 +77,17 @@ class InMemorySocialGraphRepository implements SocialGraphRepository {
   unblock(actorId: string, targetId: string): Promise<void> {
     this.blocks.delete(pair(actorId, targetId));
     return Promise.resolve();
+  }
+
+  canViewPosts(viewerId: string, authorId: string): Promise<boolean> {
+    const author = this.profiles.get(authorId);
+    return Promise.resolve(
+      Boolean(
+        author &&
+        !this.hasBlock(viewerId, authorId) &&
+        (viewerId === authorId || !author.isPrivate || this.follows.has(pair(viewerId, authorId))),
+      ),
+    );
   }
 
   private hasBlock(first: string, second: string): boolean {
@@ -113,7 +129,7 @@ describe('SocialGraphService authorization rules', () => {
     await expect(service.follow('alice', 'bob')).resolves.toEqual({ state: 'following' });
     await expect(service.follow('alice', 'carol')).resolves.toEqual({ state: 'requested' });
     await expect(service.acceptRequest('bob', 'alice')).rejects.toMatchObject({ status: 404 });
-    await expect(service.incomingRequests('carol')).resolves.toMatchObject({
+    await expect(service.incomingRequests('carol', { limit: 20 })).resolves.toMatchObject({
       requests: [{ requester: { userId: 'alice' } }],
     });
     await expect(service.acceptRequest('carol', 'alice')).resolves.toEqual({ state: 'following' });
@@ -134,7 +150,7 @@ describe('SocialGraphService authorization rules', () => {
     await expect(service.follow('alice', 'alice')).rejects.toMatchObject({ status: 400 });
     await expect(service.block('alice', 'alice')).rejects.toMatchObject({ status: 400 });
     await service.follow('alice', 'carol');
-    await expect(service.declineRequest('bob', 'alice')).rejects.toMatchObject({ status: 404 });
+    await expect(service.declineRequest('bob', 'alice')).resolves.toBeUndefined();
     await expect(service.declineRequest('carol', 'alice')).resolves.toBeUndefined();
   });
 });

@@ -14,6 +14,7 @@ const apiEnvironmentSchema = sharedRuntimeSchema
     DATABASE_URL: z.string().min(1),
     REDIS_URL: urlSchema,
     S3_ENDPOINT: urlSchema,
+    S3_PUBLIC_ENDPOINT: urlSchema.optional(),
     S3_REGION: z.string().min(1),
     S3_ACCESS_KEY: z.string().min(1),
     S3_SECRET_KEY: z.string().min(1),
@@ -91,7 +92,14 @@ const apiEnvironmentSchema = sharedRuntimeSchema
   });
 
 const workerEnvironmentSchema = sharedRuntimeSchema.extend({
+  DATABASE_URL: z.string().min(1),
   REDIS_URL: urlSchema,
+  S3_ENDPOINT: urlSchema,
+  S3_REGION: z.string().min(1),
+  S3_ACCESS_KEY: z.string().min(1),
+  S3_SECRET_KEY: z.string().min(1),
+  S3_BUCKET: z.string().min(3),
+  S3_FORCE_PATH_STYLE: z.stringbool().default(true),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().max(100).default(4),
 });
 

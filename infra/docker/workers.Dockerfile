@@ -4,6 +4,7 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/workers/package.json apps/workers/package.json
+COPY packages/api-contracts/package.json packages/api-contracts/package.json
 COPY packages/config/package.json packages/config/package.json
 RUN pnpm install --frozen-lockfile --ignore-scripts
 

@@ -13,6 +13,7 @@ import {
   register,
   updateOwnProfile,
 } from '../lib/identity-api';
+import { CreatePostForm } from '../features/create-post/create-post-form';
 
 type Mode = 'login' | 'register';
 
@@ -169,6 +170,7 @@ export function IdentityPanel() {
             {pending ? 'Saving…' : 'Save profile'}
           </button>
         </form>
+        <CreatePostForm emailVerified={user.emailVerified} />
       </section>
     );
   }
