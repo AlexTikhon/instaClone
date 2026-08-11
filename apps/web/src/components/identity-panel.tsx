@@ -14,6 +14,8 @@ import {
   updateOwnProfile,
 } from '../lib/identity-api';
 import { CreatePostForm } from '../features/create-post/create-post-form';
+import { AuthenticatedContent } from '../features/notifications/authenticated-content';
+import { DiscoverUser } from '../features/follow-user/discover-user';
 
 type Mode = 'login' | 'register';
 
@@ -128,50 +130,54 @@ export function IdentityPanel() {
 
   if (user) {
     return (
-      <section className="identityCard" aria-labelledby="profile-title">
-        <div className="identityHeader">
-          <div>
-            <p className="eyebrow">Authenticated profile</p>
-            <h2 id="profile-title">@{user.profile.username}</h2>
+      <div className="authenticatedApp">
+        <section className="identityCard" aria-labelledby="profile-title">
+          <div className="identityHeader">
+            <div>
+              <p className="eyebrow">Authenticated profile</p>
+              <h2 id="profile-title">@{user.profile.username}</h2>
+            </div>
+            <button
+              className="secondaryButton"
+              type="button"
+              disabled={pending}
+              onClick={() => void endSession()}
+            >
+              Log out
+            </button>
           </div>
-          <button
-            className="secondaryButton"
-            type="button"
-            disabled={pending}
-            onClick={() => void endSession()}
-          >
-            Log out
-          </button>
-        </div>
-        <form className="identityForm" onSubmit={(event) => void submitProfile(event)}>
-          <label>
-            Display name
-            <input
-              name="displayName"
-              defaultValue={user.profile.displayName}
-              required
-              maxLength={60}
-            />
-          </label>
-          <label>
-            Bio
-            <textarea name="bio" defaultValue={user.profile.bio} maxLength={160} rows={3} />
-          </label>
-          <label>
-            Website
-            <input name="websiteUrl" defaultValue={user.profile.websiteUrl ?? ''} type="url" />
-          </label>
-          <label className="checkLabel">
-            <input name="isPrivate" type="checkbox" defaultChecked={user.profile.isPrivate} />
-            Private account
-          </label>
-          {error && <p className="formError">{error}</p>}
-          <button type="submit" disabled={pending}>
-            {pending ? 'Saving…' : 'Save profile'}
-          </button>
-        </form>
-        <CreatePostForm emailVerified={user.emailVerified} />
-      </section>
+          <form className="identityForm" onSubmit={(event) => void submitProfile(event)}>
+            <label>
+              Display name
+              <input
+                name="displayName"
+                defaultValue={user.profile.displayName}
+                required
+                maxLength={60}
+              />
+            </label>
+            <label>
+              Bio
+              <textarea name="bio" defaultValue={user.profile.bio} maxLength={160} rows={3} />
+            </label>
+            <label>
+              Website
+              <input name="websiteUrl" defaultValue={user.profile.websiteUrl ?? ''} type="url" />
+            </label>
+            <label className="checkLabel">
+              <input name="isPrivate" type="checkbox" defaultChecked={user.profile.isPrivate} />
+              Private account
+            </label>
+            {error && <p className="formError">{error}</p>}
+            <button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save profile'}
+            </button>
+          </form>
+          <CreatePostForm emailVerified={user.emailVerified} />
+          <DiscoverUser emailVerified={user.emailVerified} />
+        </section>
+        <AuthenticatedContent />
+      </div>
     );
   }
 

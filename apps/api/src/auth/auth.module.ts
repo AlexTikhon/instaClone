@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { IdentityModule } from '../identity/identity.module';
 import { AccessAuthGuard } from './access-auth.guard';
+import { AccessSessionAuthenticator } from './access-session-authenticator';
 import { AuthCleanupService } from './auth-cleanup.service';
 import { AuthController } from './auth.controller';
 import { AuthEmailService } from './auth-email.service';
@@ -17,6 +18,7 @@ import { VerifiedEmailGuard } from './verified-email.guard';
   controllers: [AuthController],
   providers: [
     AccessAuthGuard,
+    AccessSessionAuthenticator,
     AuthCleanupService,
     AuthEmailService,
     AuthRateLimitGuard,
@@ -26,6 +28,12 @@ import { VerifiedEmailGuard } from './verified-email.guard';
     PasswordService,
     VerifiedEmailGuard,
   ],
-  exports: [AccessAuthGuard, AuthTokensService, CsrfGuard, VerifiedEmailGuard],
+  exports: [
+    AccessAuthGuard,
+    AccessSessionAuthenticator,
+    AuthTokensService,
+    CsrfGuard,
+    VerifiedEmailGuard,
+  ],
 })
 export class AuthModule {}

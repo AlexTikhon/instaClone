@@ -1,8 +1,9 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 3 adds secure direct image uploads, bounded asynchronous processing, authored posts,
-cursor reads, and a transactional outbox to the authentication, profile, and Social Graph foundation.
+monolith. Phase 5 adds durable recipient-owned notifications, notification-producing Social Graph
+events, native authenticated WebSockets, Redis Pub/Sub fan-out, reconnect recovery, and TanStack
+Query notification UX to the Phase 4 feed and engagement foundation.
 
 ## Prerequisites
 
@@ -47,7 +48,8 @@ pnpm validate
 
 The PostgreSQL integration suite is enabled in CI. To run it locally after applying migrations, set
 `RUN_POSTGRES_INTEGRATION=true` and `TEST_DATABASE_URL` to a disposable PostgreSQL database before
-running the API tests.
+running the API and worker tests. API integration files run serially against that shared fixture
+database; unit files remain parallel by default.
 
 Architecture and decision rationale live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the
 ADRs under [`docs/ADR`](docs/ADR).

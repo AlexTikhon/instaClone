@@ -103,6 +103,19 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
+.discoverUser {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.profileResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .mediaPreview,
 .createdPost img {
   width: 100%;
@@ -204,6 +217,228 @@ button:disabled {
   opacity: 0.65;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #ffd2c7;
+  outline-offset: 3px;
+}
+
+.authenticatedApp {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 620px);
+  align-items: start;
+  gap: 40px;
+  margin-top: 72px;
+}
+
+.authenticatedApp .identityCard {
+  position: sticky;
+  top: 24px;
+  margin-top: 0;
+}
+
+.feed {
+  display: grid;
+  gap: 28px;
+}
+
+.activityColumn {
+  display: grid;
+  gap: 20px;
+}
+
+.appNavigation {
+  display: flex;
+  gap: 8px;
+}
+
+.notifications,
+.notificationState {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(21, 21, 21, 0.92);
+  padding: 24px;
+}
+
+.notificationHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notificationHeader h2 {
+  margin: 6px 0 18px;
+}
+
+.notificationList {
+  display: grid;
+  gap: 1px;
+  margin: 0 -24px;
+  padding: 0;
+  background: var(--line);
+  list-style: none;
+}
+
+.notificationItem {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.notificationItem time,
+.notificationItem small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.notificationUnread .notificationItem {
+  border-left: 3px solid var(--accent);
+  background: #201815;
+}
+
+.postCard,
+.feedState,
+.feedSkeleton {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(21, 21, 21, 0.92);
+}
+
+.postHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.postHeader div {
+  display: grid;
+  gap: 3px;
+}
+
+.postHeader span,
+.postHeader time,
+.muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.postMedia {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 720px;
+  object-fit: contain;
+  background: #090909;
+}
+
+.postActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px 0;
+}
+
+.postActions button,
+.activeAction {
+  min-height: 42px;
+}
+
+.activeAction {
+  border-color: var(--accent);
+  background: rgba(255, 118, 87, 0.18);
+  color: var(--ink);
+}
+
+.caption {
+  padding: 0 16px;
+  line-height: 1.5;
+}
+
+.comments {
+  padding: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.commentForm {
+  display: flex;
+  gap: 8px;
+}
+
+.commentForm input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0d0d0d;
+  color: var(--ink);
+  padding: 11px 12px;
+}
+
+.commentList {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commentList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.commentList p {
+  margin: 0;
+}
+
+.textButton {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px;
+}
+
+.feedState {
+  padding: 36px;
+}
+
+.feedSkeleton {
+  min-height: 420px;
+  background: linear-gradient(100deg, #151515 30%, #24211f 50%, #151515 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.loadMore {
+  justify-self: center;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -300%;
+  }
+}
+
 .secondaryButton {
   border-color: var(--line);
   background: transparent;
@@ -253,5 +488,17 @@ button:disabled {
 
   .principles h2 {
     margin-top: 24px;
+  }
+
+  .authenticatedApp {
+    grid-template-columns: 1fr;
+  }
+
+  .authenticatedApp .identityCard {
+    position: static;
+  }
+
+  .postHeader {
+    align-items: flex-start;
   }
 }

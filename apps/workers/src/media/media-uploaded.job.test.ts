@@ -36,8 +36,9 @@ describe('media uploaded job', () => {
         verifiedSizeBytes: original.byteLength,
       }),
       isTerminal: vi.fn(),
-      complete: vi.fn().mockResolvedValue(undefined),
+      complete: vi.fn().mockResolvedValue(true),
       fail: vi.fn(),
+      release: vi.fn(),
     };
     const storage = {
       download: vi.fn().mockResolvedValue(original),
@@ -52,6 +53,7 @@ describe('media uploaded job', () => {
     expect(repository.complete).toHaveBeenCalledWith(
       envelope.eventId,
       envelope.payload.mediaId,
+      expect.any(String),
       expect.objectContaining({ width: 80, height: 40 }),
     );
   });
@@ -71,7 +73,8 @@ describe('media uploaded job', () => {
         .mockResolvedValueOnce(null),
       isTerminal: vi.fn().mockResolvedValue(true),
       complete: vi.fn(),
-      fail: vi.fn().mockResolvedValue(undefined),
+      fail: vi.fn().mockResolvedValue(true),
+      release: vi.fn(),
     };
     const storage = {
       download: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
@@ -82,8 +85,35 @@ describe('media uploaded job', () => {
     expect(repository.fail).toHaveBeenCalledWith(
       envelope.eventId,
       envelope.payload.mediaId,
+      expect.any(String),
       'DECODE_FAILED',
     );
     await expect(handler.handle(envelope)).resolves.toMatchObject({ status: 'UNCHANGED' });
+  });
+
+  it('releases its owned lease when a transient storage error should retry', async () => {
+    const envelope = event();
+    const repository = {
+      claim: vi.fn().mockResolvedValue({
+        id: envelope.payload.mediaId,
+        ownerId: envelope.payload.ownerId,
+        objectKey: 'original',
+        declaredMimeType: 'image/jpeg',
+        verifiedSizeBytes: 100,
+      }),
+      isTerminal: vi.fn(),
+      complete: vi.fn(),
+      fail: vi.fn(),
+      release: vi.fn().mockResolvedValue(undefined),
+    };
+    const storage = {
+      download: vi.fn().mockRejectedValue(new Error('S3 unavailable')),
+      putThumbnail: vi.fn(),
+    };
+    await expect(new MediaUploadedJobHandler(repository, storage).handle(envelope)).rejects.toThrow(
+      'S3 unavailable',
+    );
+    expect(repository.claim).toHaveBeenCalledWith(envelope, expect.any(String));
+    expect(repository.release).toHaveBeenCalledWith(envelope.payload.mediaId, expect.any(String));
   });
 });

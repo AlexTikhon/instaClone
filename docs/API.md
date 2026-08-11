@@ -1,5 +1,59 @@
 # API
 
+## Notifications
+
+All notification ownership comes from the authenticated access-cookie session; no endpoint accepts a
+recipient ID.
+
+| Method | Path                                   | Behavior                                       |
+| ------ | -------------------------------------- | ---------------------------------------------- |
+| GET    | `/api/v1/notifications?limit=&cursor=` | descending keyset page plus total unread count |
+| PUT    | `/api/v1/notifications/:id/read`       | idempotently marks one owned row read          |
+| PUT    | `/api/v1/notifications/read-all`       | marks only the current user's unread rows      |
+
+The list response is `{ items, nextCursor, hasMore, unreadCount }`; the opaque cursor represents
+`(createdAt, id)`. Invalid cursors use `INVALID_NOTIFICATION_CURSOR`. Missing and foreign IDs both
+use `NOTIFICATION_NOT_FOUND`, preventing an ownership oracle. Both PUT operations require the normal
+CSRF cookie/header pair and are safe to repeat.
+
+Each item contains only notification identity/type/timestamps, a minimal render actor, and nullable
+post/comment target identifiers with `contentAvailable`. It never returns email, sessions, security
+fields, raw Prisma records, or whole domain snapshots.
+
+The native WebSocket endpoint is `/api/v1/realtime`. Server messages use:
+
+```json
+{
+  "event": "NOTIFICATION_CREATED",
+  "data": { "notification": {} }
+}
+```
+
+The embedded notification follows the same strict response contract as REST. This message is an
+online hint, not a replay or delivery guarantee. Clients refetch the REST collection whenever a
+connection opens or reopens.
+
+## Phase 4 feed and engagement endpoints
+
+| Method | Path                                 | Purpose                            |
+| ------ | ------------------------------------ | ---------------------------------- |
+| GET    | `/api/v1/feed?limit=&cursor=`        | Chronological self/following feed  |
+| PUT    | `/api/v1/posts/:postId/like`         | Idempotently like a visible post   |
+| DELETE | `/api/v1/posts/:postId/like`         | Idempotently unlike a visible post |
+| PUT    | `/api/v1/posts/:postId/save`         | Privately save a visible post      |
+| DELETE | `/api/v1/posts/:postId/save`         | Idempotently remove a private save |
+| POST   | `/api/v1/posts/:postId/comments`     | Create a top-level comment         |
+| GET    | `/api/v1/posts/:postId/comments?...` | Page active comments newest-first  |
+| DELETE | `/api/v1/comments/:commentId`        | Soft-delete the caller's comment   |
+| DELETE | `/api/v1/posts/:postId`              | Soft-delete the caller's post      |
+
+Feed returns `{ items, nextCursor, hasMore }`. Items contain post/author/media, `likeCount`, active
+`commentCount`, `viewerHasLiked`, and private `viewerHasSaved`; comment lists and save counts are not
+embedded. Malformed bounded cursors produce `INVALID_FEED_CURSOR` or `INVALID_COMMENT_CURSOR`.
+
+Every interaction reapplies post visibility. Hidden, disabled, blocked, private, or deleted content
+produces `POST_NOT_FOUND`. Comment bodies are strict, trimmed, nonempty, and at most 1,000 characters.
+
 ## Conventions
 
 - Base path: `/api/v1`

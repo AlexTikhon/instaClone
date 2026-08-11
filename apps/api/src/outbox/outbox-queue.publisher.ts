@@ -17,7 +17,7 @@ export class OutboxQueuePublisher implements OnModuleDestroy {
     const queue = this.getQueue();
     await queue.add(event.eventName, event, {
       jobId: event.eventId,
-      attempts: 5,
+      attempts: 8,
       backoff: { type: 'exponential', delay: 1_000 },
       removeOnComplete: { age: 7 * 24 * 60 * 60, count: 10_000 },
       removeOnFail: { age: 30 * 24 * 60 * 60, count: 10_000 },

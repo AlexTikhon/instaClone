@@ -16,8 +16,12 @@ export class SocialGraphService {
     @Inject(SOCIAL_GRAPH_REPOSITORY) private readonly socialGraph: SocialGraphRepository,
   ) {}
 
-  async follow(actorId: string, targetId: string): Promise<SocialConnectionResponse> {
-    const result = await this.socialGraph.follow(actorId, targetId);
+  async follow(
+    actorId: string,
+    targetId: string,
+    correlationId = 'social-graph',
+  ): Promise<SocialConnectionResponse> {
+    const result = await this.socialGraph.follow(actorId, targetId, correlationId);
     if (result === 'self') throw new BadRequestException('You cannot follow yourself');
     if (result === 'not_found' || result === 'blocked') {
       throw new NotFoundException('User is not available');

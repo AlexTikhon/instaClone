@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import type { Profile } from '@instaclone/api-contracts';
+import { FOLLOW_REQUESTED_EVENT, USER_FOLLOWED_EVENT } from '@instaclone/api-contracts';
 
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../infrastructure/database/prisma.service';
+import { createOutboxEvent } from '../outbox/event-envelope';
 import type { SocialGraphRepository } from './social-graph.repository';
 import type {
   AcceptRequestResult,
@@ -26,7 +28,7 @@ const toProfile = (profile: Profile): Profile => ({
 export class PrismaSocialGraphRepository implements SocialGraphRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  follow(actorId: string, targetId: string): Promise<FollowResult> {
+  follow(actorId: string, targetId: string, correlationId: string): Promise<FollowResult> {
     if (actorId === targetId) return Promise.resolve('self');
     return this.runSerializable(async (transaction) => {
       const target = await transaction.user.findUnique({
@@ -42,19 +44,37 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
       if (existingFollow) return 'following';
 
       if (target.profile.isPrivate) {
-        await transaction.followRequest.upsert({
-          where: { requesterId_targetId: { requesterId: actorId, targetId } },
-          create: { requesterId: actorId, targetId },
-          update: {},
+        const inserted = await transaction.followRequest.createMany({
+          data: [{ requesterId: actorId, targetId }],
+          skipDuplicates: true,
         });
+        if (inserted.count === 1) {
+          const event = createOutboxEvent({
+            eventName: FOLLOW_REQUESTED_EVENT,
+            aggregateType: 'FollowRequest',
+            aggregateId: targetId,
+            correlationId,
+            payload: { requesterId: actorId, targetUserId: targetId },
+          });
+          await transaction.outboxEvent.create({ data: { ...event, payload: event.payload } });
+        }
         return 'requested';
       }
 
-      await transaction.follow.upsert({
-        where: { followerId_followingId: { followerId: actorId, followingId: targetId } },
-        create: { followerId: actorId, followingId: targetId },
-        update: {},
+      const inserted = await transaction.follow.createMany({
+        data: [{ followerId: actorId, followingId: targetId }],
+        skipDuplicates: true,
       });
+      if (inserted.count === 1) {
+        const event = createOutboxEvent({
+          eventName: USER_FOLLOWED_EVENT,
+          aggregateType: 'Follow',
+          aggregateId: targetId,
+          correlationId,
+          payload: { actorId, targetUserId: targetId },
+        });
+        await transaction.outboxEvent.create({ data: { ...event, payload: event.payload } });
+      }
       await transaction.followRequest.deleteMany({ where: { requesterId: actorId, targetId } });
       return 'following';
     });

@@ -35,7 +35,7 @@ export class SocialGraphController {
     @Req() request: AuthenticatedRequest,
     @Param('targetId') targetId: string,
   ): Promise<SocialConnectionResponse> {
-    return this.socialGraph.follow(request.identity.id, this.userId(targetId));
+    return this.socialGraph.follow(request.identity.id, this.userId(targetId), request.id);
   }
 
   @Delete('follows/:targetId')

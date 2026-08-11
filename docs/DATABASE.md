@@ -1,5 +1,57 @@
 # Database
 
+## Notifications
+
+`notifications` is the durable user-facing consequence of social domain events. It stores the
+recipient, notification type, nullable actor/post/comment references, creation/read timestamps, and
+the source event ID. `sourceEventId` is unique, so concurrent at-least-once deliveries use a single
+`INSERT ... ON CONFLICT` invariant rather than a racy read-before-write check.
+
+The actor username and display name are the only immutable presentation snapshot. They keep old
+activity renderable when an actor is disabled or deleted without copying a profile or post JSON
+document. Recipient deletion cascades the row; actor, post, and comment hard deletion sets the
+reference null. Soft-deleted posts/comments remain referenced but the API reports their content as
+unavailable. Notifications are retained indefinitely in the local/demo phase; a later retention job
+may archive or delete old rows after a product retention period is chosen.
+
+Concrete indexes are deliberately limited:
+
+- unique `sourceEventId` enforces projection idempotency;
+- `(recipientId, createdAt, id)` supports recipient-owned descending keyset pages;
+- partial `recipientId WHERE readAt IS NULL` supports the exact unread-count predicate without
+  indexing read history.
+
+Unread count is computed from PostgreSQL for correctness. Redis counters are intentionally deferred
+until query volume demonstrates a need and a reconciliation strategy exists.
+
+## Phase 4 schema and access paths
+
+`post_likes` and `saved_posts` use `(userId, postId)` primary keys. Conflict-safe inserts make
+concurrent PUTs idempotent. Their `postId` indexes serve aggregation because the primary-key prefix
+is `userId`.
+
+`comments` is top-level-only. Soft-deleted rows are retained and a check rejects blank bodies.
+`(postId, deletedAt, createdAt, id)` matches active-comment pages/counts; `(authorId, createdAt)`
+supports ownership and retention. Normal post deletion sets `deletedAt` and retains media and
+engagement for future asynchronous cleanup.
+
+`posts(deletedAt, createdAt, id)` supports the active chronological feed scan. Existing follow and
+block keys support relationship checks. Representative plans can use the deterministic
+`pnpm --filter @instaclone/api db:seed:scale` utility, never normal tests or migrations.
+
+On the deterministic 100-user/1,000-post dataset, PostgreSQL 17 used the active-post index, the
+`follows` composite primary key for membership probes, and block indexes, with a top-N heapsort of
+28 KiB. A local `EXPLAIN (ANALYZE, BUFFERS)` returned 21 rows in approximately 1.4 ms. This is a
+development baseline, not a production SLO; larger and differently distributed data must be measured.
+
+Media processing records `processingStartedAt`, `processingLeaseUntil`, and per-attempt
+`processingWorkerId`. `(status, processingLeaseUntil)` finds abandoned claims. Terminal transitions
+require ownership and commit the consumer receipt atomically.
+
+Interaction transactions take a shared lock on the target post before rechecking visibility; post
+deletion takes an exclusive lock. Concurrent interactions can proceed together, while deletion is
+serialized against the authorization-to-write window so no request authorizes against stale state.
+
 ## Authority
 
 PostgreSQL is the system of record. Redis and search indexes must be reconstructable from committed
@@ -67,7 +119,7 @@ Future tables should use:
   orderings;
 - transactions around aggregate state changes and their outbox records.
 
-Likes and saved posts will use composite uniqueness so retries cannot duplicate state.
+Likes and saved posts use composite uniqueness so retries cannot duplicate state.
 Large mutable collections will use keyset/cursor pagination, never primary-flow `OFFSET` pagination.
 
 ## Prisma workflow

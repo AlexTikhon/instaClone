@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 import type { ApiEnvironment } from '@instaclone/config';
 
@@ -15,6 +16,7 @@ export const configureApplication = (app: INestApplication): void => {
   const config = app.get(ConfigService<ApiEnvironment, true>);
 
   app.useLogger(app.get(Logger));
+  app.useWebSocketAdapter(new WsAdapter(app));
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({

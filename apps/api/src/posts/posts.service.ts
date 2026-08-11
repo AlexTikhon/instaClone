@@ -11,15 +11,15 @@ import {
   type Profile,
 } from '@instaclone/api-contracts';
 
-import type { MediaAsset } from '../generated/prisma/client';
+import { Prisma, type MediaAsset } from '../generated/prisma/client';
 import { PrismaService } from '../infrastructure/database/prisma.service';
 import { MediaService } from '../media/media.service';
 import { createOutboxEvent } from '../outbox/event-envelope';
 import { ApiError } from '../platform/errors/api-error';
-import { SocialGraphService } from '../social-graph/social-graph.service';
+import { PostAccessPolicy } from '../post-access/post-access-policy';
 import { decodePostCursor, encodePostCursor } from './post-cursor';
 
-interface PostView {
+export interface PostView {
   id: string;
   caption: string;
   createdAt: Date;
@@ -28,7 +28,7 @@ interface PostView {
   media: { position: number; mediaAsset: MediaAsset }[];
 }
 
-const postInclude = {
+export const postInclude = {
   author: { select: { profile: true } },
   media: { orderBy: { position: 'asc' as const }, include: { mediaAsset: true } },
 } as const;
@@ -38,7 +38,7 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
-    private readonly socialGraph: SocialGraphService,
+    private readonly access: PostAccessPolicy,
   ) {}
 
   async create(
@@ -84,25 +84,21 @@ export class PostsService {
 
   async get(viewerId: string, postId: string): Promise<PostResponse> {
     const post = await this.prisma.post.findFirst({
-      where: { id: postId, deletedAt: null, author: { disabledAt: null } },
+      where: { id: postId, ...this.access.visibleWhere(viewerId) },
       include: postInclude,
     });
-    if (!post || !(await this.socialGraph.canViewPosts(viewerId, post.authorId))) {
+    if (!post) {
       throw new ApiError(HttpStatus.NOT_FOUND, 'POST_NOT_FOUND', 'Post was not found');
     }
     return this.toResponse(post);
   }
 
   async list(viewerId: string, query: ListPostsQuery): Promise<PaginatedPostsResponse> {
-    if (!(await this.socialGraph.canViewPosts(viewerId, query.authorId))) {
-      return { posts: [], nextCursor: null };
-    }
     const cursor = query.cursor ? decodePostCursor(query.cursor) : null;
     const rows = await this.prisma.post.findMany({
       where: {
         authorId: query.authorId,
-        deletedAt: null,
-        author: { disabledAt: null },
+        ...this.access.visibleWhere(viewerId),
         ...(cursor
           ? {
               OR: [
@@ -125,7 +121,27 @@ export class PostsService {
     };
   }
 
-  private async toResponse(post: PostView): Promise<PostResponse> {
+  async delete(authorId: string, postId: string): Promise<void> {
+    await this.prisma.$transaction(async (transaction) => {
+      const rows = await transaction.$queryRaw<{ authorId: string; deletedAt: Date | null }[]>(
+        Prisma.sql`SELECT "authorId", "deletedAt" FROM posts WHERE id = ${postId}::uuid FOR UPDATE`,
+      );
+      const post = rows[0];
+      if (!post || post.deletedAt) {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'POST_NOT_FOUND', 'Post was not found');
+      }
+      if (post.authorId !== authorId) {
+        throw new ApiError(
+          HttpStatus.FORBIDDEN,
+          'POST_NOT_OWNED',
+          'Only the post author may delete it',
+        );
+      }
+      await transaction.post.update({ where: { id: postId }, data: { deletedAt: new Date() } });
+    });
+  }
+
+  async toResponse(post: PostView): Promise<PostResponse> {
     if (!post.author.profile) throw new Error('Post author profile is missing');
     return {
       id: post.id,

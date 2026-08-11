@@ -28,6 +28,11 @@ model User {
   incomingBlocks          Block[]                   @relation("BlockedEdges")
   mediaAssets             MediaAsset[]
   posts                   Post[]
+  postLikes               PostLike[]
+  comments                Comment[]
+  savedPosts              SavedPost[]
+  receivedNotifications   Notification[]           @relation("NotificationRecipient")
+  actedNotifications      Notification[]           @relation("NotificationActor")
 
   @@map("users")
 }
@@ -158,6 +163,9 @@ model MediaAsset {
   durationMs         Int?
   status             MediaAssetStatus @default(PENDING_UPLOAD)
   failureCode        String?          @db.VarChar(64)
+  processingStartedAt DateTime?       @db.Timestamptz(3)
+  processingLeaseUntil DateTime?      @db.Timestamptz(3)
+  processingWorkerId String?          @db.VarChar(128)
   createdAt          DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
   owner              User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -165,6 +173,7 @@ model MediaAsset {
 
   @@index([ownerId, createdAt])
   @@index([status, updatedAt])
+  @@index([status, processingLeaseUntil])
   @@map("media_assets")
 }
 
@@ -177,9 +186,55 @@ model Post {
   deletedAt DateTime?   @db.Timestamptz(3)
   author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   media     PostMedia[]
+  likes     PostLike[]
+  comments  Comment[]
+  savedBy   SavedPost[]
+  notifications Notification[]
 
   @@index([authorId, createdAt, id])
+  @@index([deletedAt, createdAt, id])
   @@map("posts")
+}
+
+model PostLike {
+  userId    String   @db.Uuid
+  postId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId])
+  @@map("post_likes")
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  postId    String    @db.Uuid
+  authorId  String    @db.Uuid
+  body      String    @db.VarChar(1000)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([postId, deletedAt, createdAt, id])
+  @@index([authorId, createdAt])
+  @@map("comments")
+}
+
+model SavedPost {
+  userId    String   @db.Uuid
+  postId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId])
+  @@map("saved_posts")
 }
 
 model PostMedia {
@@ -220,6 +275,27 @@ model ConsumerEventReceipt {
 
   @@id([eventId, consumerName])
   @@map("consumer_event_receipts")
+}
+
+model Notification {
+  id                  String           @id @default(uuid()) @db.Uuid
+  sourceEventId       String           @unique @db.Uuid
+  recipientId         String           @db.Uuid
+  actorId             String?          @db.Uuid
+  type                NotificationType
+  postId              String?          @db.Uuid
+  commentId           String?          @db.Uuid
+  actorUsername       String           @db.VarChar(30)
+  actorDisplayName    String           @db.VarChar(60)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  readAt              DateTime?        @db.Timestamptz(3)
+  recipient           User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor               User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  post                Post?            @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment             Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, createdAt, id])
+  @@map("notifications")
 }
 
 model Block {
@@ -267,4 +343,11 @@ enum MediaAssetStatus {
   PROCESSING
   READY
   FAILED
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  FOLLOW_REQUEST
 }

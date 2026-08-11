@@ -1,13 +1,52 @@
 # Events and asynchronous work
 
+## Phase 5 notification projection
+
+The domain queue additionally carries version-1 `USER_FOLLOWED` and `FOLLOW_REQUESTED` events:
+
+- `USER_FOLLOWED { actorId, targetUserId }` is emitted only when a new public follow edge is inserted;
+- `FOLLOW_REQUESTED { requesterId, targetUserId }` is emitted only when a new private request is
+  inserted.
+
+Both are written inside the Social Graph serializable transaction. Accepting a request does not emit
+`USER_FOLLOWED`, because that would notify the accepting target a second time. A distinct acceptance
+notification is postponed until product/UI behavior requires it.
+
+`POST_LIKED`, `COMMENT_CREATED`, `USER_FOLLOWED`, and `FOLLOW_REQUESTED` map respectively to `LIKE`,
+`COMMENT`, `FOLLOW`, and `FOLLOW_REQUEST` notification types. Domain event names remain facts; the
+notification type is a presentation consequence and is not assumed to be permanently one-to-one.
+Self-actions are suppressed in the projector.
+
+The notification row is its own durable consumer consequence. Unlike media processing, no separate
+`ConsumerEventReceipt` is required: `sourceEventId UNIQUE` makes the consequence and receipt one
+database invariant. If the insert fails, the job throws and retries. If the process crashes after
+commit and before BullMQ acknowledgement, retry returns the existing row and cannot insert a second
+one. A Redis publish failure is logged but does not undo or lose the committed notification.
+
+At-least-once queue delivery and best-effort Pub/Sub may produce duplicate online signals. Clients
+deduplicate by notification ID. No global event ordering is promised.
+
+## Phase 4 events and media leases
+
+`POST_LIKED` is written only when a like row is newly inserted. `COMMENT_CREATED` is written with
+the new comment. Both events commit atomically with business state and carry useful identifiers,
+not content. Phase 5 consumes them in the notification projector. Unlike, unsave, and deletion events
+are omitted because no current downstream domain needs them.
+
+Media claims now use a database lease and per-attempt ownership token. Duplicate delivery cannot
+claim an active `PROCESSING` row. Transient exceptions release an owned claim; a process crash leaves
+it reclaimable after 60 seconds. A crash after thumbnail upload remains safe because the derivative
+key is deterministic. Terminal updates require current ownership, preventing a stale worker from
+completing over a newer attempt.
+
 ## Boundary
 
 BullMQ provides delivery and retry mechanics over Redis. It does not become the source of business
 truth. Domain events that must survive failures are persisted in `outbox_events` in the same
 PostgreSQL transaction as the aggregate change. A dispatcher publishes committed events later.
 
-The Phase 0 `platform.probe` remains isolated. Phase 3 adds the `domain-events` queue and two version
-1 envelopes: `MEDIA_UPLOADED` and `POST_CREATED`.
+The Phase 0 `platform.probe` remains isolated. The `domain-events` queue carries version 1 envelopes
+for `MEDIA_UPLOADED`, `POST_CREATED`, `POST_LIKED`, and `COMMENT_CREATED`.
 
 ## Durable envelope
 
@@ -58,8 +97,8 @@ finite attempt count. Exhausted jobs remain in BullMQ's failed set with bounded 
 diagnosis and controlled replay. A separate dead-letter queue is postponed until operations require
 one. Handlers distinguish transient dependency failures from permanent validation failures.
 
-Expected future events include `POST_LIKED`, `COMMENT_CREATED`, `COMMENT_REPLIED`, `USER_FOLLOWED`,
-`FOLLOW_REQUESTED`, `USER_MENTIONED`, and `MESSAGE_RECEIVED`. Notification code consumes these events;
+Possible future events include `COMMENT_REPLIED`, `USER_FOLLOWED`, `FOLLOW_REQUESTED`,
+`USER_MENTIONED`, and `MESSAGE_RECEIVED`. Notification code may consume these events later;
 controllers never call notification internals.
 
 ## Ordering

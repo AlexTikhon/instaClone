@@ -6,11 +6,9 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { IDENTITY_REPOSITORY, type IdentityRepository } from '../identity/identity.repository';
 import { ACCESS_COOKIE } from './auth.constants';
+import { AccessSessionAuthenticator } from './access-session-authenticator';
 import type { AuthenticatedRequest } from './authenticated-request';
-import { AuthTokensService } from './auth-tokens.service';
-import { Inject } from '@nestjs/common';
 
 const readCookie = (request: Request, name: string): unknown => {
   const cookies: unknown = request.cookies;
@@ -21,35 +19,17 @@ const readCookie = (request: Request, name: string): unknown => {
 
 @Injectable()
 export class AccessAuthGuard implements CanActivate {
-  constructor(
-    private readonly tokens: AuthTokensService,
-    @Inject(IDENTITY_REPOSITORY) private readonly identities: IdentityRepository,
-  ) {}
+  constructor(private readonly authenticator: AccessSessionAuthenticator) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const token = readCookie(request, ACCESS_COOKIE);
-    const claims = typeof token === 'string' ? this.tokens.verifyAccessToken(token) : null;
-    if (!claims) throw new UnauthorizedException('Authentication required');
+    const identity = await this.authenticator.authenticate(
+      typeof token === 'string' ? token : null,
+    );
+    if (!identity) throw new UnauthorizedException('Authentication required');
 
-    const session = await this.identities.findSession(claims.sessionId);
-    const now = new Date();
-    if (
-      session?.userId !== claims.userId ||
-      session.revokedAt ||
-      session.expiresAt <= now ||
-      session.identity.disabledAt
-    ) {
-      throw new UnauthorizedException('Authentication required');
-    }
-
-    (request as AuthenticatedRequest).identity = {
-      id: session.identity.id,
-      email: session.identity.email,
-      emailVerified: session.identity.emailVerifiedAt !== null,
-      profile: session.identity.profile,
-      sessionId: session.id,
-    };
+    (request as AuthenticatedRequest).identity = identity;
     return true;
   }
 }

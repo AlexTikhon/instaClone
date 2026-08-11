@@ -11,10 +11,10 @@ export default async function HomePage() {
     <main className="shell">
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">Identity foundation · Phase 1</p>
-        <h1 id="page-title">Turn a secure identity into a real post.</h1>
+        <h1 id="page-title">Share, respond, and return to what matters.</h1>
         <p className="lede">
-          Authenticate, upload directly to protected object storage, and publish an image only after
-          the platform has verified and processed it.
+          A chronological home feed with persisted likes, comments, and private saved posts, built
+          on secure direct uploads and explicit social visibility rules.
         </p>
         <PlatformStatus apiStatus={apiStatus} />
       </section>

@@ -72,16 +72,92 @@ export type {
   PostResponse,
 } from './post-contracts';
 export {
+  feedEngagementSchema,
+  feedItemSchema,
+  feedQuerySchema,
+  feedResponseSchema,
+} from './feed-contracts';
+export type { FeedEngagement, FeedItem, FeedQuery, FeedResponse } from './feed-contracts';
+export {
+  commentResponseSchema,
+  commentsQuerySchema,
+  commentsResponseSchema,
+  createCommentInputSchema,
+  likeResponseSchema,
+  MAX_COMMENT_LENGTH,
+  saveResponseSchema,
+} from './engagement-contracts';
+export type {
+  CommentResponse,
+  CommentsQuery,
+  CommentsResponse,
+  CreateCommentInput,
+  LikeResponse,
+  SaveResponse,
+} from './engagement-contracts';
+export {
+  markAllNotificationsReadInputSchema,
+  markAllNotificationsReadResponseSchema,
+  markNotificationReadInputSchema,
+  markNotificationReadResponseSchema,
+  NOTIFICATION_CREATED_MESSAGE,
+  NOTIFICATION_REALTIME_CHANNEL,
+  notificationActorSchema,
+  notificationResponseSchema,
+  notificationRealtimeEnvelopeSchema,
+  notificationsQuerySchema,
+  notificationsResponseSchema,
+  notificationTargetSchema,
+  notificationTypeSchema,
+  realtimeNotificationMessageSchema,
+  realtimeNotificationPayloadSchema,
+} from './notification-contracts';
+export type {
+  MarkAllNotificationsReadInput,
+  MarkAllNotificationsReadResponse,
+  MarkNotificationReadInput,
+  MarkNotificationReadResponse,
+  NotificationActor,
+  NotificationResponse,
+  NotificationRealtimeEnvelope,
+  NotificationsQuery,
+  NotificationsResponse,
+  NotificationTarget,
+  NotificationType,
+  RealtimeNotificationMessage,
+  RealtimeNotificationPayload,
+} from './notification-contracts';
+export {
+  COMMENT_CREATED_EVENT,
+  commentCreatedEventSchema,
+  commentCreatedPayloadSchema,
   DOMAIN_EVENTS_QUEUE,
   eventEnvelopeSchema,
+  FOLLOW_REQUESTED_EVENT,
+  followRequestedEventSchema,
+  followRequestedPayloadSchema,
   MEDIA_UPLOADED_EVENT,
   mediaUploadedEventSchema,
   mediaUploadedPayloadSchema,
   POST_CREATED_EVENT,
   postCreatedEventSchema,
   postCreatedPayloadSchema,
+  POST_LIKED_EVENT,
+  postLikedEventSchema,
+  postLikedPayloadSchema,
+  USER_FOLLOWED_EVENT,
+  userFollowedEventSchema,
+  userFollowedPayloadSchema,
 } from './event-contracts';
-export type { EventEnvelope, MediaUploadedEvent, PostCreatedEvent } from './event-contracts';
+export type {
+  CommentCreatedEvent,
+  EventEnvelope,
+  FollowRequestedEvent,
+  MediaUploadedEvent,
+  PostCreatedEvent,
+  PostLikedEvent,
+  UserFollowedEvent,
+} from './event-contracts';
 export type {
   AcceptedResponse,
   AuthenticatedUser,

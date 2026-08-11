@@ -13,14 +13,28 @@ export interface ProcessingAsset {
 export class MediaProcessingRepository {
   constructor(private readonly pool: Pool) {}
 
-  async claim(event: MediaUploadedEvent): Promise<ProcessingAsset | null> {
+  async claim(
+    event: MediaUploadedEvent,
+    workerId: string,
+    leaseMs = 60_000,
+  ): Promise<ProcessingAsset | null> {
     const result = await this.pool.query<ProcessingAsset>(
       `UPDATE media_assets
-       SET status = 'PROCESSING', "updatedAt" = CURRENT_TIMESTAMP
+       SET status = 'PROCESSING',
+           "processingStartedAt" = CURRENT_TIMESTAMP,
+           "processingLeaseUntil" = CURRENT_TIMESTAMP + ($4 * INTERVAL '1 millisecond'),
+           "processingWorkerId" = $3,
+           "updatedAt" = CURRENT_TIMESTAMP
        WHERE id = $1 AND "ownerId" = $2
-         AND status IN ('UPLOADED', 'PROCESSING')
+         AND (
+           status = 'UPLOADED'
+           OR (
+             status = 'PROCESSING'
+             AND ("processingLeaseUntil" IS NULL OR "processingLeaseUntil" < CURRENT_TIMESTAMP)
+           )
+         )
        RETURNING id, "ownerId", "objectKey", "declaredMimeType", "verifiedSizeBytes"`,
-      [event.payload.mediaId, event.payload.ownerId],
+      [event.payload.mediaId, event.payload.ownerId, workerId, leaseMs],
     );
     return result.rows[0] ?? null;
   }
@@ -36,48 +50,70 @@ export class MediaProcessingRepository {
   async complete(
     eventId: string,
     mediaId: string,
+    workerId: string,
     metadata: { width: number; height: number; thumbnailObjectKey: string },
-  ): Promise<void> {
-    await this.transaction(async (client) => {
-      if (!(await this.recordReceipt(client, eventId))) return;
-      await client.query(
+  ): Promise<boolean> {
+    return this.transaction(async (client) => {
+      const result = await client.query(
         `UPDATE media_assets
          SET status = 'READY', width = $2, height = $3, "thumbnailObjectKey" = $4,
-             "failureCode" = NULL, "updatedAt" = CURRENT_TIMESTAMP
-         WHERE id = $1 AND status = 'PROCESSING'`,
-        [mediaId, metadata.width, metadata.height, metadata.thumbnailObjectKey],
+             "failureCode" = NULL, "processingLeaseUntil" = NULL,
+             "processingWorkerId" = NULL, "updatedAt" = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'PROCESSING' AND "processingWorkerId" = $5`,
+        [mediaId, metadata.width, metadata.height, metadata.thumbnailObjectKey, workerId],
       );
+      if (result.rowCount !== 1) return false;
+      await this.recordReceipt(client, eventId);
+      return true;
     });
   }
 
-  async fail(eventId: string, mediaId: string, failureCode: string): Promise<void> {
-    await this.transaction(async (client) => {
-      if (!(await this.recordReceipt(client, eventId))) return;
-      await client.query(
+  async fail(
+    eventId: string,
+    mediaId: string,
+    workerId: string,
+    failureCode: string,
+  ): Promise<boolean> {
+    return this.transaction(async (client) => {
+      const result = await client.query(
         `UPDATE media_assets
-         SET status = 'FAILED', "failureCode" = $2, "updatedAt" = CURRENT_TIMESTAMP
-         WHERE id = $1 AND status = 'PROCESSING'`,
-        [mediaId, failureCode],
+         SET status = 'FAILED', "failureCode" = $2, "processingLeaseUntil" = NULL,
+             "processingWorkerId" = NULL, "updatedAt" = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'PROCESSING' AND "processingWorkerId" = $3`,
+        [mediaId, failureCode, workerId],
       );
+      if (result.rowCount !== 1) return false;
+      await this.recordReceipt(client, eventId);
+      return true;
     });
   }
 
-  private async recordReceipt(client: PoolClient, eventId: string): Promise<boolean> {
-    const result = await client.query(
+  async release(mediaId: string, workerId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE media_assets
+       SET status = 'UPLOADED', "processingLeaseUntil" = NULL,
+           "processingWorkerId" = NULL, "updatedAt" = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'PROCESSING' AND "processingWorkerId" = $2`,
+      [mediaId, workerId],
+    );
+  }
+
+  private async recordReceipt(client: PoolClient, eventId: string): Promise<void> {
+    await client.query(
       `INSERT INTO consumer_event_receipts ("eventId", "consumerName")
        VALUES ($1, 'media-processor-v1')
        ON CONFLICT DO NOTHING`,
       [eventId],
     );
-    return result.rowCount === 1;
   }
 
-  private async transaction(operation: (client: PoolClient) => Promise<void>): Promise<void> {
+  private async transaction<T>(operation: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await operation(client);
+      const result = await operation(client);
       await client.query('COMMIT');
+      return result;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 
 import {
   createPostInputSchema,
@@ -45,5 +56,12 @@ export class PostsController {
     @Param('postId') postId: string,
   ): Promise<PostResponse> {
     return this.posts.get(request.identity.id, parseRequest(postIdSchema, postId));
+  }
+
+  @Delete(':postId')
+  @HttpCode(204)
+  @UseGuards(AccessAuthGuard, VerifiedEmailGuard, CsrfGuard)
+  delete(@Req() request: AuthenticatedRequest, @Param('postId') postId: string): Promise<void> {
+    return this.posts.delete(request.identity.id, parseRequest(postIdSchema, postId));
   }
 }

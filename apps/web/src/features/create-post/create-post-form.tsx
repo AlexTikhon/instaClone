@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import {
@@ -17,6 +18,7 @@ import {
   waitForReadyMedia,
 } from '../../entities/media/api';
 import { createPost } from '../../entities/post/api';
+import { queryKeys } from '../feed/query-keys';
 
 interface CreatePostFormProps {
   emailVerified: boolean;
@@ -28,6 +30,7 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Post creation failed';
 
 export function CreatePostForm({ emailVerified }: CreatePostFormProps) {
+  const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<WorkflowStage>('idle');
@@ -97,6 +100,7 @@ export function CreatePostForm({ emailVerified }: CreatePostFormProps) {
         csrfToken,
       );
       setCreatedPost(post);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.feed });
       setFile(null);
       setPreviewUrl(null);
       form.reset();

@@ -18,7 +18,7 @@ class InMemorySocialGraphRepository implements SocialGraphRepository {
   readonly requests = new Map<string, Date>();
   readonly blocks = new Set<string>();
 
-  follow(actorId: string, targetId: string): Promise<FollowResult> {
+  follow(actorId: string, targetId: string, _correlationId: string): Promise<FollowResult> {
     if (actorId === targetId) return Promise.resolve('self');
     const target = this.profiles.get(targetId);
     if (!target) return Promise.resolve('not_found');

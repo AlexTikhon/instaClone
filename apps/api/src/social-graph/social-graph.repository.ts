@@ -9,7 +9,7 @@ import type {
 export const SOCIAL_GRAPH_REPOSITORY = Symbol('SOCIAL_GRAPH_REPOSITORY');
 
 export interface SocialGraphRepository {
-  follow(actorId: string, targetId: string): Promise<FollowResult>;
+  follow(actorId: string, targetId: string, correlationId: string): Promise<FollowResult>;
   unfollow(actorId: string, targetId: string): Promise<void>;
   listIncomingRequests(
     targetId: string,

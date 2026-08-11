@@ -55,6 +55,7 @@ describe.runIf(postgresEnabled)('social graph PostgreSQL integration', () => {
       select: { id: true },
     });
     const userIds = users.map((user) => user.id);
+    await prisma.outboxEvent.deleteMany({ where: { aggregateId: { in: userIds } } });
     await prisma.authAuditEvent.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     verificationTokens.clear();
@@ -111,6 +112,16 @@ describe.runIf(postgresEnabled)('social graph PostgreSQL integration', () => {
       .expect(200)
       .expect({ state: 'following' });
     await alice.agent
+      .post(`/api/v1/social/follows/${bob.userId}`)
+      .set('x-csrf-token', alice.csrfToken)
+      .expect(200)
+      .expect({ state: 'following' });
+    expect(
+      await prisma.outboxEvent.count({
+        where: { eventName: 'USER_FOLLOWED', aggregateId: bob.userId },
+      }),
+    ).toBe(1);
+    await alice.agent
       .delete(`/api/v1/social/follows/${bob.userId}`)
       .set('x-csrf-token', alice.csrfToken)
       .expect(204);
@@ -151,6 +162,11 @@ describe.runIf(postgresEnabled)('social graph PostgreSQL integration', () => {
       .set('x-csrf-token', bob.csrfToken)
       .expect(200)
       .expect({ state: 'requested' });
+    expect(
+      await prisma.outboxEvent.count({
+        where: { eventName: 'FOLLOW_REQUESTED', aggregateId: carol.userId },
+      }),
+    ).toBe(2);
     expect(
       await prisma.follow.count({
         where: { followerId: alice.userId, followingId: carol.userId },

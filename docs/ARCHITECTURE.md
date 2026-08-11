@@ -1,5 +1,56 @@
 # Architecture
 
+## Phase 5 notifications and realtime foundation
+
+Notifications are a PostgreSQL projection of durable domain events inside the modular monolith. A
+like, comment, public follow, or private follow request commits its domain state and outbox intent
+together. The domain worker maps that fact to a user-facing `Notification`; controllers never call
+notification projection code from the mutation transaction.
+
+The notification insert commits before the worker publishes a small recipient envelope to one Redis
+Pub/Sub channel. Every API instance subscribes, routes the envelope to its local set of authenticated
+WebSockets for that user, and sends `NOTIFICATION_CREATED`. PostgreSQL is durable delivery; the
+WebSocket is a low-latency best-effort signal. A disconnected or sleeping browser recovers with
+`GET /notifications` after reconnect.
+
+The worker bootstrap delegates domain event names through a small explicit router. Media processing
+retains its lifecycle handler, `POST_CREATED` remains a validated no-op, and notification-producing
+events share one projector. This avoids a growing bootstrap switch without introducing a generic
+event framework or a service boundary.
+
+Native WebSockets are sufficient for authenticated server-to-client delivery and avoid Socket.IO's
+additional protocol, fallback transports, and acknowledgements. The API tracks a set, not a single
+socket, per user so tabs and devices all receive online signals. One shared Redis channel is a simple
+Phase 5 tradeoff: every API instance sees each small envelope and filters locally. At substantially
+larger instance counts, instance-targeted channels could reduce fan-out work without changing
+PostgreSQL durability.
+
+## Phase 4 feed and engagement
+
+Feed V1 is a read-composition module. `FeedController` calls `FeedService`, which asks
+`CandidateSource` for a relationally filtered page, applies the injected `FeedRanker`, batch-hydrates
+engagement, and maps strict response contracts. It consumes Posts' public response mapper and the
+shared post-access policy; Posts never depends on Feed.
+
+`CandidateSource` performs fan-out on read in PostgreSQL. Relation filters select the viewer's posts
+or accepted-follow authors while excluding disabled/profile-less authors, deleted posts,
+either-direction blocks, and inaccessible private authors. It never loads all followed IDs or merges
+per-author queries.
+
+`ChronologicalFeedRanker` orders immutable `(createdAt DESC, id DESC)` fields. Mutable engagement is
+excluded so cursors remain stable. A future mutable-score ranker will require snapshot semantics.
+
+A feed page uses one candidate-source operation (with Prisma's bounded relation loading for authors
+and media) and four parallel engagement queries: grouped like counts, grouped active-comment counts,
+viewer-like membership, and viewer-save membership. Depending on Prisma's relation load strategy,
+this is approximately five to nine SQL statements regardless of page length, never `1 + N`.
+TanStack Query owns browser server state; optimistic like/save mutations snapshot and patch the feed
+cache, then apply the server result or roll back.
+
+Fan-out on read gives simple writes and immediate deletion/follow consistency but amplifies reads
+for follow-heavy accounts. Measured future options include first-page, engagement-count, and hot-post
+caches. Fan-out on write and celebrity hybrids remain out of scope.
+
 ## Purpose and current scope
 
 The application is an educational production-engineering system. Phase 0 established operational
@@ -38,8 +89,8 @@ repository directly.
 
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
-persistence. Future modules include Posts, Media, Reactions, Comments, Saved Posts, Feed, Stories,
-Reels, Search, Messaging, Notifications, and Moderation.
+persistence. Current product modules also include Posts, Media, Engagement, Feed, Social Graph, and
+Notifications. Stories, Reels, Search, Messaging, and Moderation remain future phases.
 
 Social Graph owns directed follows, private-account requests, and blocks behind its own repository
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CreatePostForm } from './create-post-form';
@@ -22,6 +23,12 @@ vi.mock('../../entities/media/api', () => ({
 vi.mock('../../entities/post/api', () => ({ createPost: api.createPost }));
 
 describe('CreatePostForm', () => {
+  const renderForm = (emailVerified: boolean) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <CreatePostForm emailVerified={emailVerified} />
+      </QueryClientProvider>,
+    );
   beforeEach(() => {
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn().mockReturnValue('blob:preview') },
@@ -66,7 +73,7 @@ describe('CreatePostForm', () => {
     api.getCsrfToken.mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve('csrf'), 20)),
     );
-    render(<CreatePostForm emailVerified />);
+    renderForm(true);
     const file = new File([new Uint8Array([1, 2, 3])], 'photo.jpg', { type: 'image/jpeg' });
     fireEvent.change(screen.getByLabelText('Image'), { target: { files: [file] } });
     fireEvent.change(screen.getByLabelText('Caption'), { target: { value: 'A real post' } });
@@ -85,7 +92,7 @@ describe('CreatePostForm', () => {
   });
 
   it('keeps publishing disabled for an unverified account', () => {
-    render(<CreatePostForm emailVerified={false} />);
+    renderForm(false);
     expect(screen.getByText('Verify your email before publishing media.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create post' })).toBeDisabled();
   });

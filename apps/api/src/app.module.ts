@@ -15,6 +15,10 @@ import { SocialGraphModule } from './social-graph/social-graph.module';
 import { MediaModule } from './media/media.module';
 import { OutboxModule } from './outbox/outbox.module';
 import { PostsModule } from './posts/posts.module';
+import { EngagementModule } from './engagement/engagement.module';
+import { FeedModule } from './feed/feed.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -39,6 +43,10 @@ import { PostsModule } from './posts/posts.module';
     SocialGraphModule,
     MediaModule,
     PostsModule,
+    EngagementModule,
+    FeedModule,
+    NotificationsModule,
+    RealtimeModule,
     OutboxModule,
     HealthModule,
   ],

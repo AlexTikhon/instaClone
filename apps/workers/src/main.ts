@@ -6,8 +6,12 @@ import { Pool } from 'pg';
 
 import {
   DOMAIN_EVENTS_QUEUE,
+  COMMENT_CREATED_EVENT,
+  FOLLOW_REQUESTED_EVENT,
   MEDIA_UPLOADED_EVENT,
   POST_CREATED_EVENT,
+  POST_LIKED_EVENT,
+  USER_FOLLOWED_EVENT,
   postCreatedEventSchema,
   type EventEnvelope,
 } from '@instaclone/api-contracts';
@@ -22,7 +26,15 @@ import {
 } from './jobs/platform-probe.job';
 import { MediaObjectStorage } from './media/media-object-storage';
 import { MediaProcessingRepository } from './media/media-processing.repository';
-import { MediaUploadedJobHandler, type MediaProcessingResult } from './media/media-uploaded.job';
+import {
+  type DomainEventHandler,
+  DomainEventRouter,
+  ValidatedEventHandler,
+} from './domain-events/domain-event-router';
+import { MediaUploadedJobHandler } from './media/media-uploaded.job';
+import { NotificationProjectionRepository } from './notifications/notification-projection.repository';
+import { NotificationProjector } from './notifications/notification-projector';
+import { NotificationRealtimePublisher } from './notifications/notification-realtime.publisher';
 
 const environment = parseWorkerEnvironment(process.env);
 const logger = pino({
@@ -35,6 +47,7 @@ const logger = pino({
       : undefined,
 });
 const redis = new Redis(environment.REDIS_URL, { maxRetriesPerRequest: null });
+const realtimeRedis = redis.duplicate();
 const database = new Pool({
   connectionString: environment.DATABASE_URL,
   max: environment.WORKER_CONCURRENCY + 1,
@@ -52,6 +65,21 @@ const mediaHandler = new MediaUploadedJobHandler(
   new MediaProcessingRepository(database),
   new MediaObjectStorage(s3, environment.S3_BUCKET),
 );
+const notificationProjector = new NotificationProjector(
+  new NotificationProjectionRepository(database),
+  new NotificationRealtimePublisher(realtimeRedis),
+  logger,
+);
+const domainEventRouter = new DomainEventRouter(
+  new Map<string, DomainEventHandler>([
+    [MEDIA_UPLOADED_EVENT, mediaHandler],
+    [POST_CREATED_EVENT, new ValidatedEventHandler((input) => postCreatedEventSchema.parse(input))],
+    [POST_LIKED_EVENT, notificationProjector],
+    [COMMENT_CREATED_EVENT, notificationProjector],
+    [USER_FOLLOWED_EVENT, notificationProjector],
+    [FOLLOW_REQUESTED_EVENT, notificationProjector],
+  ]),
+);
 
 const worker = new Worker<PlatformProbeData, PlatformProbeResult>(
   PLATFORM_QUEUE,
@@ -65,16 +93,9 @@ const worker = new Worker<PlatformProbeData, PlatformProbeResult>(
   },
 );
 
-const domainWorker = new Worker<EventEnvelope, MediaProcessingResult | { status: 'VALIDATED' }>(
+const domainWorker = new Worker<EventEnvelope, unknown>(
   DOMAIN_EVENTS_QUEUE,
-  async (job: Job<EventEnvelope>) => {
-    if (job.name === MEDIA_UPLOADED_EVENT) return mediaHandler.handle(job.data);
-    if (job.name === POST_CREATED_EVENT) {
-      postCreatedEventSchema.parse(job.data);
-      return { status: 'VALIDATED' };
-    }
-    throw new Error(`Unsupported domain event: ${job.name}`);
-  },
+  (job: Job<EventEnvelope>) => domainEventRouter.handle(job.name, job.data),
   { concurrency: environment.WORKER_CONCURRENCY, connection: redis },
 );
 
@@ -121,7 +142,7 @@ const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, 'worker shutting down');
   await Promise.all([worker.close(), domainWorker.close()]);
   await database.end();
-  await redis.quit();
+  await Promise.all([redis.quit(), realtimeRedis.quit()]);
 };
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

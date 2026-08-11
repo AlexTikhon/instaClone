@@ -7,6 +7,7 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
     },
     environment: 'node',
+    fileParallelism: process.env.RUN_POSTGRES_INTEGRATION !== 'true',
     globals: true,
     include: ['src/**/*.spec.ts', 'test/**/*.test.ts'],
     restoreMocks: true,

@@ -13,14 +13,15 @@ export class MediaUploadedJobHandler {
   constructor(
     private readonly repository: Pick<
       MediaProcessingRepository,
-      'claim' | 'isTerminal' | 'complete' | 'fail'
+      'claim' | 'isTerminal' | 'complete' | 'fail' | 'release'
     >,
     private readonly storage: Pick<MediaObjectStorage, 'download' | 'putThumbnail'>,
   ) {}
 
   async handle(input: unknown): Promise<MediaProcessingResult> {
     const event = mediaUploadedEventSchema.parse(input);
-    const asset = await this.repository.claim(event);
+    const workerId = randomUUID();
+    const asset = await this.repository.claim(event, workerId);
     if (!asset) {
       if (await this.repository.isTerminal(event.payload.mediaId)) {
         return { mediaId: event.payload.mediaId, status: 'UNCHANGED' };
@@ -36,17 +37,24 @@ export class MediaUploadedJobHandler {
       const processed = await processImage(original);
       const thumbnailKey = thumbnailObjectKey(asset.ownerId, asset.id);
       await this.storage.putThumbnail(thumbnailKey, processed.thumbnail);
-      await this.repository.complete(event.eventId, asset.id, {
+      const completed = await this.repository.complete(event.eventId, asset.id, workerId, {
         width: processed.width,
         height: processed.height,
         thumbnailObjectKey: thumbnailKey,
       });
+      if (!completed) return { mediaId: asset.id, status: 'UNCHANGED' };
       return { mediaId: asset.id, status: 'READY' };
     } catch (error) {
       if (error instanceof PermanentMediaError) {
-        await this.repository.fail(event.eventId, asset.id, error.failureCode);
-        return { mediaId: asset.id, status: 'FAILED' };
+        const failed = await this.repository.fail(
+          event.eventId,
+          asset.id,
+          workerId,
+          error.failureCode,
+        );
+        return { mediaId: asset.id, status: failed ? 'FAILED' : 'UNCHANGED' };
       }
+      await this.repository.release(asset.id, workerId);
       throw error;
     }
   }
@@ -54,3 +62,4 @@ export class MediaUploadedJobHandler {
 
 export const parseMediaUploadedEvent = (input: unknown): MediaUploadedEvent =>
   mediaUploadedEventSchema.parse(input);
+import { randomUUID } from 'node:crypto';

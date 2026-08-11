@@ -19,6 +19,7 @@
     "test:coverage": "pnpm build:packages && pnpm -r --if-present test:coverage",
     "db:generate": "pnpm --filter @instaclone/api db:generate",
     "db:validate": "pnpm --filter @instaclone/api db:validate",
+    "db": "pnpm db:generate && pnpm db:validate",
     "compose:validate": "docker compose config --quiet",
     "validate": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm db:validate && pnpm test && pnpm build && pnpm compose:validate",
     "postinstall": "pnpm build:packages && pnpm db:generate"

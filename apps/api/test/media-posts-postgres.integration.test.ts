@@ -93,6 +93,7 @@ describe.runIf(postgresEnabled)('media and posts PostgreSQL integration', () => 
       ...user.posts.map((post) => post.id),
     ]);
     await prisma.outboxEvent.deleteMany({ where: { aggregateId: { in: aggregateIds } } });
+    await prisma.outboxEvent.deleteMany({ where: { eventName: 'COMMENT_CREATED' } });
     await prisma.authAuditEvent.deleteMany({
       where: { userId: { in: users.map((user) => user.id) } },
     });
@@ -164,6 +165,18 @@ describe.runIf(postgresEnabled)('media and posts PostgreSQL integration', () => 
         width: 100,
         height: 100,
         status: 'READY',
+      },
+    });
+  };
+
+  const createReadyPost = async (authorId: string, caption: string, createdAt?: Date) => {
+    const media = await readyAsset(authorId);
+    return prisma.post.create({
+      data: {
+        authorId,
+        caption,
+        ...(createdAt ? { createdAt } : {}),
+        media: { create: { mediaAssetId: media.id, position: 0 } },
       },
     });
   };
@@ -332,5 +345,184 @@ describe.runIf(postgresEnabled)('media and posts PostgreSQL integration', () => 
       .get(`/api/v1/posts?authorId=${author.userId}`)
       .expect(200)
       .expect({ posts: [], nextCursor: null });
+  });
+
+  it('builds a stable self-and-following feed and applies every visibility exclusion', async () => {
+    const [viewer, followed, stranger, blocked, disabled, privateAuthor] = await Promise.all([
+      register('feedviewer'),
+      register('feedfollowed'),
+      register('feedstranger'),
+      register('feedblocked'),
+      register('feeddisabled'),
+      register('feedprivate'),
+    ]);
+    await Promise.all([viewer, followed, stranger, blocked, disabled, privateAuthor].map(verify));
+    for (const targetId of [
+      followed.userId,
+      blocked.userId,
+      disabled.userId,
+      privateAuthor.userId,
+    ]) {
+      await viewer.agent
+        .post(`/api/v1/social/follows/${targetId}`)
+        .set('x-csrf-token', viewer.csrfToken)
+        .expect(200);
+    }
+    await privateAuthor.agent
+      .patch('/api/v1/profiles/me')
+      .set('x-csrf-token', privateAuthor.csrfToken)
+      .send({ isPrivate: true })
+      .expect(200);
+    await viewer.agent
+      .post(`/api/v1/social/blocks/${blocked.userId}`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(204);
+    await prisma.user.update({ where: { id: disabled.userId }, data: { disabledAt: new Date() } });
+
+    const base = Date.parse('2026-08-11T10:00:00.000Z');
+    const visible = await Promise.all([
+      createReadyPost(viewer.userId, 'self', new Date(base + 5_000)),
+      createReadyPost(followed.userId, 'followed-new', new Date(base + 4_000)),
+      createReadyPost(followed.userId, 'followed-old', new Date(base + 3_000)),
+      createReadyPost(privateAuthor.userId, 'accepted-private', new Date(base + 2_000)),
+    ]);
+    const deleted = await createReadyPost(followed.userId, 'deleted', new Date(base + 1_000));
+    await prisma.post.update({ where: { id: deleted.id }, data: { deletedAt: new Date() } });
+    await Promise.all([
+      createReadyPost(stranger.userId, 'stranger'),
+      createReadyPost(blocked.userId, 'blocked'),
+      createReadyPost(disabled.userId, 'disabled'),
+    ]);
+
+    const first = await viewer.agent.get('/api/v1/feed?limit=2').expect(200);
+    const firstBody = first.body as {
+      items: { post: { id: string } }[];
+      nextCursor: string;
+      hasMore: boolean;
+    };
+    expect(firstBody.items.map((item) => item.post.id)).toEqual([visible[0]?.id, visible[1]?.id]);
+    expect(firstBody.hasMore).toBe(true);
+    const second = await viewer.agent
+      .get(`/api/v1/feed?limit=2&cursor=${firstBody.nextCursor}`)
+      .expect(200);
+    const secondIds = (second.body as { items: { post: { id: string } }[] }).items.map(
+      (item) => item.post.id,
+    );
+    expect(secondIds).toEqual([visible[2]?.id, visible[3]?.id]);
+    expect(new Set([...firstBody.items.map((item) => item.post.id), ...secondIds]).size).toBe(4);
+    await viewer.agent
+      .get('/api/v1/feed?cursor=malformed')
+      .expect(400)
+      .expect((response) => {
+        expect(response.body).toMatchObject({ error: { code: 'INVALID_FEED_CURSOR' } });
+      });
+  });
+
+  it('makes likes and saves race-safe and hydrates viewer-specific state', async () => {
+    const [author, viewer] = await Promise.all([
+      register('engageauthor'),
+      register('engageviewer'),
+    ]);
+    await Promise.all([verify(author), verify(viewer)]);
+    await viewer.agent
+      .post(`/api/v1/social/follows/${author.userId}`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200);
+    const post = await createReadyPost(author.userId, 'engage');
+
+    const likes = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        viewer.agent.put(`/api/v1/posts/${post.id}/like`).set('x-csrf-token', viewer.csrfToken),
+      ),
+    );
+    expect(likes.every((response) => response.status === 200)).toBe(true);
+    expect(await prisma.postLike.count({ where: { postId: post.id, userId: viewer.userId } })).toBe(
+      1,
+    );
+    expect(
+      await prisma.outboxEvent.count({ where: { eventName: 'POST_LIKED', aggregateId: post.id } }),
+    ).toBe(1);
+
+    const saves = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        viewer.agent.put(`/api/v1/posts/${post.id}/save`).set('x-csrf-token', viewer.csrfToken),
+      ),
+    );
+    expect(saves.every((response) => response.status === 200)).toBe(true);
+    expect(
+      await prisma.savedPost.count({ where: { postId: post.id, userId: viewer.userId } }),
+    ).toBe(1);
+    const feed = await viewer.agent.get('/api/v1/feed').expect(200);
+    expect(feed.body).toMatchObject({
+      items: [{ engagement: { likeCount: 1, viewerHasLiked: true, viewerHasSaved: true } }],
+    });
+    await viewer.agent
+      .delete(`/api/v1/posts/${post.id}/like`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200);
+    await viewer.agent
+      .delete(`/api/v1/posts/${post.id}/like`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200);
+    await viewer.agent
+      .delete(`/api/v1/posts/${post.id}/save`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200);
+    await viewer.agent
+      .delete(`/api/v1/posts/${post.id}/save`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(200);
+    expect(await prisma.postLike.count({ where: { postId: post.id } })).toBe(0);
+    expect(await prisma.savedPost.count({ where: { postId: post.id } })).toBe(0);
+  });
+
+  it('creates, pages, and author-deletes comments and forbids interaction after post deletion', async () => {
+    const [author, viewer, other] = await Promise.all([
+      register('commentauthor'),
+      register('commentviewer'),
+      register('commentother'),
+    ]);
+    await Promise.all([verify(author), verify(viewer), verify(other)]);
+    const post = await createReadyPost(author.userId, 'comments');
+    const first = await viewer.agent
+      .post(`/api/v1/posts/${post.id}/comments`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .send({ body: ' first ' })
+      .expect(201);
+    await viewer.agent
+      .post(`/api/v1/posts/${post.id}/comments`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .send({ body: 'second' })
+      .expect(201);
+    const page = await author.agent.get(`/api/v1/posts/${post.id}/comments?limit=1`).expect(200);
+    expect(page.body).toMatchObject({ comments: [{ body: 'second' }], hasMore: true });
+    await other.agent
+      .delete(`/api/v1/comments/${(first.body as { id: string }).id}`)
+      .set('x-csrf-token', other.csrfToken)
+      .expect(403);
+    await viewer.agent
+      .delete(`/api/v1/comments/${(first.body as { id: string }).id}`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(204);
+    expect(await prisma.comment.count({ where: { postId: post.id, deletedAt: null } })).toBe(1);
+
+    await author.agent
+      .delete(`/api/v1/posts/${post.id}`)
+      .set('x-csrf-token', author.csrfToken)
+      .expect(204);
+    await author.agent.get(`/api/v1/posts/${post.id}`).expect(404);
+    await viewer.agent
+      .put(`/api/v1/posts/${post.id}/like`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(404);
+    await viewer.agent
+      .put(`/api/v1/posts/${post.id}/save`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .expect(404);
+    await viewer.agent
+      .post(`/api/v1/posts/${post.id}/comments`)
+      .set('x-csrf-token', viewer.csrfToken)
+      .send({ body: 'too late' })
+      .expect(404);
   });
 });

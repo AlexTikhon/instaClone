@@ -1,5 +1,39 @@
 # Security
 
+## Notification and realtime controls (Phase 5)
+
+Notification reads and updates always predicate on the current authenticated user. Foreign IDs are
+indistinguishable from missing IDs, read operations are idempotent, and unread counts cannot be
+requested for another user. Projection suppresses self-notifications on the server.
+
+The WebSocket handshake accepts no user ID or access token in its URL. It reads the existing
+HTTP-only `ic_access` cookie, validates the signed token, and rechecks session ownership, expiry,
+revocation, and disabled-account state in PostgreSQL through the same authenticator used by HTTP.
+The handshake Origin must match the configured CORS allowlist to prevent cross-site WebSocket
+hijacking. Open sockets revalidate credentials every minute and close when authentication is no
+longer valid.
+
+Redis Pub/Sub messages originate from the internal worker and are strictly schema-validated by API
+instances. Redis is not exposed as notification storage. Logs include event, notification,
+recipient, correlation, connection-count, and delivery-count identifiers, but never cookies,
+tokens, socket secrets, comment text, or notification contents.
+
+WebSocket delivery is intentionally not guaranteed. Network changes, process restarts, and Pub/Sub
+loss are recovered by recipient-owned REST reads on connect/reconnect. Future metrics can include
+`notifications_created_total`, `notification_worker_failures_total`, `realtime_connections`,
+`realtime_delivery_attempts`, and notification API latency; Phase 5 does not add a metrics stack.
+
+## Feed and engagement controls (Phase 4)
+
+A single post-access policy is used by direct reads, timelines, Feed, likes, comments, and saves. It
+excludes deleted posts, disabled/profile-less authors, blocks in either direction, and inaccessible
+private content. Uniform `POST_NOT_FOUND` behavior avoids visibility and block oracles.
+
+Composite keys make likes and private saves concurrency-safe. Saver identities and save counts are
+never exposed. Comment text is not logged; feed logs contain identifiers, counts, and timing only.
+Deletion ownership comes from the authenticated actor. Media and engagement survive soft post
+deletion for a future bounded asynchronous retention policy.
+
 ## Phase 0 controls
 
 - environment schemas fail startup when required values are missing or malformed;
