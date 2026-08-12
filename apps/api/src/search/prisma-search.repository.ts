@@ -180,6 +180,7 @@ export class PrismaSearchRepository implements SearchRepository {
           WHERE c."postId" = p.id
             AND c."createdAt" <= params.snapshot_at
             AND (c."deletedAt" IS NULL OR c."deletedAt" > params.snapshot_at)
+            AND c."moderationRemovedAt" IS NULL
         ) comments ON true
         WHERE ${this.access.visibleSql(viewerId)}
           AND p."authorId" <> ${viewerId}::uuid

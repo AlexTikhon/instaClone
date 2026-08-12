@@ -22,7 +22,11 @@ export class ProfilesController {
   }
 
   @Get(':username')
-  findPublic(@Param('username') username: string): Promise<Profile> {
-    return this.profiles.findPublic(username);
+  @UseGuards(AccessAuthGuard)
+  findPublic(
+    @Req() request: AuthenticatedRequest,
+    @Param('username') username: string,
+  ): Promise<Profile> {
+    return this.profiles.findPublic(request.identity.id, username);
   }
 }

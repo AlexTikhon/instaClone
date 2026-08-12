@@ -8,11 +8,18 @@ import { EngagementController } from './engagement.controller';
 import { EngagementHydrator } from './engagement-hydrator';
 import { LikesService } from './likes.service';
 import { SavedPostsService } from './saved-posts.service';
+import { CommentModerationPolicy } from './comment-moderation-policy';
 
 @Module({
   imports: [AuthModule, IdentityModule, PostAccessModule],
   controllers: [EngagementController],
-  providers: [CommentsService, EngagementHydrator, LikesService, SavedPostsService],
-  exports: [EngagementHydrator],
+  providers: [
+    CommentsService,
+    EngagementHydrator,
+    LikesService,
+    SavedPostsService,
+    CommentModerationPolicy,
+  ],
+  exports: [EngagementHydrator, CommentModerationPolicy],
 })
 export class EngagementModule {}

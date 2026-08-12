@@ -131,6 +131,7 @@ export class AuthController {
         id: request.identity.id,
         email: request.identity.email,
         emailVerified: request.identity.emailVerified,
+        role: request.identity.role,
         profile: request.identity.profile,
       },
     };

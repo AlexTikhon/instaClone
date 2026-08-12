@@ -24,14 +24,34 @@ interface NotificationView {
   postId: string | null;
   commentId: string | null;
   actor: { disabledAt: Date | null; profile: Profile | null } | null;
-  post: { deletedAt: Date | null } | null;
-  comment: { deletedAt: Date | null } | null;
+  post: {
+    deletedAt: Date | null;
+    moderationRemovedAt: Date | null;
+    author: { disabledAt: Date | null };
+  } | null;
+  comment: {
+    deletedAt: Date | null;
+    moderationRemovedAt: Date | null;
+    author: { disabledAt: Date | null };
+  } | null;
 }
 
 const notificationInclude = {
   actor: { select: { disabledAt: true, profile: true } },
-  post: { select: { deletedAt: true } },
-  comment: { select: { deletedAt: true } },
+  post: {
+    select: {
+      deletedAt: true,
+      moderationRemovedAt: true,
+      author: { select: { disabledAt: true } },
+    },
+  },
+  comment: {
+    select: {
+      deletedAt: true,
+      moderationRemovedAt: true,
+      author: { select: { disabledAt: true } },
+    },
+  },
 } as const;
 
 @Injectable()
@@ -108,7 +128,13 @@ export class NotificationsService {
         ? Boolean(
             row.post &&
             !row.post.deletedAt &&
-            (row.type !== 'COMMENT' || (row.comment && !row.comment.deletedAt)),
+            !row.post.moderationRemovedAt &&
+            !row.post.author.disabledAt &&
+            (row.type !== 'COMMENT' ||
+              (row.comment &&
+                !row.comment.deletedAt &&
+                !row.comment.moderationRemovedAt &&
+                !row.comment.author.disabledAt)),
           )
         : null;
     return {

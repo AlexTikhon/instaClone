@@ -19,6 +19,7 @@ export class EngagementHydrator {
         where: {
           postId: { in: postIds },
           deletedAt: null,
+          moderationRemovedAt: null,
           author: { disabledAt: null, profile: { isNot: null } },
         },
         _count: { _all: true },

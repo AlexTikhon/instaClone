@@ -1,5 +1,27 @@
 # API
 
+## Moderation and reporting (Phase 9)
+
+All routes use the existing access cookie and stable error envelope. Public report creation also
+requires a verified email, CSRF, strict input validation, and a 20-per-hour IP-derived rate-limit
+bucket. Inaccessible, blocked, removed, expired, self-owned, and nonexistent targets all use the
+same `REPORT_TARGET_NOT_FOUND` response.
+
+- `POST /api/v1/reports` accepts `{ targetType, targetId, reason, details? }` for `USER`, `POST`,
+  `COMMENT`, or `STORY`. Details are optional and limited to 1,000 characters. Success exposes only
+  `{ reportId, status: "RECEIVED" }`; no report-enumeration endpoint exists.
+- `GET /api/v1/moderation/cases` requires `MODERATOR` or `ADMIN`, keyset-paginates by creation time
+  and ID, and accepts bounded `status` and `targetType` filters.
+- `GET /api/v1/moderation/cases/:caseId` returns at most 50 reports plus evidence snapshots,
+  decision, reviewer, and audit history to privileged callers only.
+- `POST /api/v1/moderation/cases/:caseId/start-review` requires privilege, verified email, and CSRF.
+- `POST /api/v1/moderation/cases/:caseId/resolve` accepts `NO_ACTION`, `REMOVE_CONTENT`, or
+  `SUSPEND_ACCOUNT` plus an optional 2,000-character private note. Only admins may suspend and only
+  user cases accept that action.
+
+Message reporting and message deletion are deferred to Phase 9.1. Reporter resolution
+notifications are not sent, avoiding accidental disclosure of enforcement details.
+
 ## Messaging (Phase 8)
 
 All reads require the authenticated access cookie. Conversation creation and send additionally
@@ -164,7 +186,7 @@ produces `POST_NOT_FOUND`. Comment bodies are strict, trimmed, nonempty, and at 
 | DELETE | `/api/v1/auth/sessions/:id`    | access cookie, CSRF  | Revoke one owned session             |
 | DELETE | `/api/v1/auth/sessions`        | access cookie, CSRF  | Revoke all owned sessions            |
 | PATCH  | `/api/v1/profiles/me`          | access cookie, CSRF  | Update only the caller's profile     |
-| GET    | `/api/v1/profiles/:name`       | none                 | Read a public profile                |
+| GET    | `/api/v1/profiles/:name`       | access cookie        | Read an available, unblocked profile |
 
 Registration and profile bodies use strict schemas; unknown fields are rejected. Access and refresh
 tokens are never returned in JSON. Browser clients send credentials and the `X-CSRF-Token` header on

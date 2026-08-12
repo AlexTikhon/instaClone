@@ -46,6 +46,9 @@ export interface IdentityRepository {
   changePassword(userId: string, passwordHash: string, now: Date): Promise<void>;
   recordAuditEvent(event: AuditEventInput): Promise<void>;
   cleanupExpiredAuthState(now: Date, auditBefore: Date): Promise<CleanupResult>;
-  findProfileByUsername(username: string): Promise<IdentityRecord['profile'] | null>;
+  findProfileByUsername(
+    username: string,
+    viewerId: string,
+  ): Promise<IdentityRecord['profile'] | null>;
   updateProfile(userId: string, input: UpdateProfileData): Promise<IdentityRecord['profile']>;
 }

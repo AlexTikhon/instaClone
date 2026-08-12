@@ -24,8 +24,41 @@ export {
   registerInputSchema,
   resetPasswordInputSchema,
   updateProfileInputSchema,
+  userRoleSchema,
   verifyEmailInputSchema,
 } from './identity-contracts';
+export {
+  createReportInputSchema,
+  createReportResponseSchema,
+  MAX_MODERATOR_NOTE_LENGTH,
+  MAX_REPORT_DETAILS_LENGTH,
+  moderationAuditActionSchema,
+  moderationCaseDetailSchema,
+  moderationCaseIdSchema,
+  moderationCasesQuerySchema,
+  moderationCasesResponseSchema,
+  moderationCaseStatusSchema,
+  moderationCaseSummarySchema,
+  moderationDecisionActionSchema,
+  moderationDecisionSchema,
+  moderationReportSchema,
+  moderationTargetTypeSchema,
+  reportReasonSchema,
+  resolveModerationCaseInputSchema,
+} from './moderation-contracts';
+export type {
+  CreateReportInput,
+  CreateReportResponse,
+  ModerationCaseDetail,
+  ModerationCasesQuery,
+  ModerationCasesResponse,
+  ModerationCaseStatus,
+  ModerationCaseSummary,
+  ModerationDecisionAction,
+  ModerationTargetType,
+  ReportReason,
+  ResolveModerationCaseInput,
+} from './moderation-contracts';
 export {
   followRequestSchema,
   followRequestsQuerySchema,
@@ -239,6 +272,12 @@ export {
   STORY_CREATED_EVENT,
   storyCreatedEventSchema,
   storyCreatedPayloadSchema,
+  ACCOUNT_SUSPENDED_EVENT,
+  accountSuspendedEventSchema,
+  accountSuspendedPayloadSchema,
+  CONTENT_MODERATED_EVENT,
+  contentModeratedEventSchema,
+  contentModeratedPayloadSchema,
 } from './event-contracts';
 export type {
   CommentCreatedEvent,
@@ -249,6 +288,8 @@ export type {
   PostLikedEvent,
   UserFollowedEvent,
   StoryCreatedEvent,
+  AccountSuspendedEvent,
+  ContentModeratedEvent,
 } from './event-contracts';
 export type {
   AcceptedResponse,
@@ -265,4 +306,5 @@ export type {
   ResetPasswordInput,
   UpdateProfileInput,
   VerifyEmailInput,
+  UserRole,
 } from './identity-contracts';

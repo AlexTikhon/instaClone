@@ -70,6 +70,7 @@ class InMemoryIdentityRepository implements IdentityRepository {
       email: input.email,
       emailVerifiedAt: null,
       disabledAt: null,
+      role: 'USER',
       passwordHash: input.passwordHash,
       profile: {
         userId,

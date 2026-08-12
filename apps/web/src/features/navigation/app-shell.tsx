@@ -45,6 +45,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             Profile
           </Link>
+          {user.role === 'MODERATOR' || user.role === 'ADMIN' ? (
+            <Link
+              className={pathname.startsWith('/moderation') ? 'active' : undefined}
+              href="/moderation"
+            >
+              Moderation
+            </Link>
+          ) : null}
         </div>
       </nav>
       <div className="productContent">{children}</div>

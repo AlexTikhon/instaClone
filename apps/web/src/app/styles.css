@@ -1050,6 +1050,99 @@ textarea:focus-visible {
   color: #ff9f8a;
 }
 
+.dialogBackdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 72%);
+}
+
+.reportDialog {
+  width: min(100%, 480px);
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.reportDialog form,
+.moderationDecision {
+  display: grid;
+  gap: 12px;
+}
+
+.reportDialog select,
+.reportDialog textarea,
+.moderationDecision select,
+.moderationDecision textarea {
+  width: 100%;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.moderationPage {
+  display: grid;
+  gap: 24px;
+}
+
+.moderationCaseList,
+.moderationReports,
+.auditList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.moderationCaseList a,
+.moderationReports li,
+.evidencePreview,
+.moderationDecision,
+.caseMetadata {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.moderationCaseList a {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, auto);
+  gap: 16px;
+  align-items: center;
+}
+
+.caseMetadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.caseMetadata dt,
+.moderationReports time,
+.moderationReports small {
+  color: var(--muted);
+}
+
+.caseMetadata dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.moderationReports li {
+  display: grid;
+  gap: 8px;
+}
+
 .principles article {
   min-height: 220px;
   padding: 28px;

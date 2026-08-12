@@ -13,7 +13,8 @@
     "db:validate": "prisma validate --config prisma.config.ts",
     "db:migrate:dev": "prisma migrate dev --config prisma.config.ts",
     "db:migrate:deploy": "prisma migrate deploy --config prisma.config.ts",
-    "db:seed:scale": "tsx scripts/seed-scale.ts"
+    "db:seed:scale": "tsx scripts/seed-scale.ts",
+    "db:assign-role": "tsx scripts/assign-role.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1106.0",

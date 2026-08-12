@@ -11,6 +11,6 @@ import { StoriesService } from './stories.service';
   imports: [AuthModule, IdentityModule, MediaModule],
   controllers: [StoriesController],
   providers: [StoriesService, StoryAccessPolicy],
-  exports: [StoriesService],
+  exports: [StoriesService, StoryAccessPolicy],
 })
 export class StoriesModule {}

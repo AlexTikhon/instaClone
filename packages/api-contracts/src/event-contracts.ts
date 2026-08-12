@@ -8,6 +8,8 @@ export const COMMENT_CREATED_EVENT = 'COMMENT_CREATED';
 export const USER_FOLLOWED_EVENT = 'USER_FOLLOWED';
 export const FOLLOW_REQUESTED_EVENT = 'FOLLOW_REQUESTED';
 export const STORY_CREATED_EVENT = 'STORY_CREATED';
+export const CONTENT_MODERATED_EVENT = 'CONTENT_MODERATED';
+export const ACCOUNT_SUSPENDED_EVENT = 'ACCOUNT_SUSPENDED';
 
 export const eventEnvelopeSchema = z.object({
   eventId: z.uuid(),
@@ -110,6 +112,34 @@ export const storyCreatedEventSchema = eventEnvelopeSchema.extend({
   payload: storyCreatedPayloadSchema,
 });
 
+export const contentModeratedPayloadSchema = z.strictObject({
+  targetType: z.enum(['POST', 'COMMENT', 'STORY']),
+  targetId: z.uuid(),
+  action: z.literal('REMOVE_CONTENT'),
+  occurredAt: z.iso.datetime(),
+});
+
+export const contentModeratedEventSchema = eventEnvelopeSchema.extend({
+  eventName: z.literal(CONTENT_MODERATED_EVENT),
+  eventVersion: z.literal(1),
+  aggregateType: z.literal('ModerationCase'),
+  payload: contentModeratedPayloadSchema,
+});
+
+export const accountSuspendedPayloadSchema = z.strictObject({
+  targetType: z.literal('USER'),
+  targetId: z.uuid(),
+  action: z.literal('SUSPEND_ACCOUNT'),
+  occurredAt: z.iso.datetime(),
+});
+
+export const accountSuspendedEventSchema = eventEnvelopeSchema.extend({
+  eventName: z.literal(ACCOUNT_SUSPENDED_EVENT),
+  eventVersion: z.literal(1),
+  aggregateType: z.literal('ModerationCase'),
+  payload: accountSuspendedPayloadSchema,
+});
+
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
 export type MediaUploadedEvent = z.infer<typeof mediaUploadedEventSchema>;
 export type PostCreatedEvent = z.infer<typeof postCreatedEventSchema>;
@@ -118,3 +148,5 @@ export type CommentCreatedEvent = z.infer<typeof commentCreatedEventSchema>;
 export type UserFollowedEvent = z.infer<typeof userFollowedEventSchema>;
 export type FollowRequestedEvent = z.infer<typeof followRequestedEventSchema>;
 export type StoryCreatedEvent = z.infer<typeof storyCreatedEventSchema>;
+export type ContentModeratedEvent = z.infer<typeof contentModeratedEventSchema>;
+export type AccountSuspendedEvent = z.infer<typeof accountSuspendedEventSchema>;

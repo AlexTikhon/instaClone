@@ -30,6 +30,7 @@ export class AccessSessionAuthenticator {
       id: session.identity.id,
       email: session.identity.email,
       emailVerified: session.identity.emailVerifiedAt !== null,
+      role: session.identity.role,
       profile: session.identity.profile,
       sessionId: session.id,
     };

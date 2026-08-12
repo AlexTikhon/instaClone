@@ -66,6 +66,7 @@ export class CommentsService {
       where: {
         postId,
         deletedAt: null,
+        moderationRemovedAt: null,
         author: { disabledAt: null, profile: { isNot: null } },
         ...(cursor
           ? {
@@ -92,7 +93,7 @@ export class CommentsService {
 
   async delete(viewerId: string, commentId: string): Promise<void> {
     const comment = await this.prisma.comment.findFirst({
-      where: { id: commentId, deletedAt: null },
+      where: { id: commentId, deletedAt: null, moderationRemovedAt: null },
       select: { authorId: true },
     });
     if (!comment) {
@@ -106,7 +107,12 @@ export class CommentsService {
       );
     }
     await this.prisma.comment.updateMany({
-      where: { id: commentId, authorId: viewerId, deletedAt: null },
+      where: {
+        id: commentId,
+        authorId: viewerId,
+        deletedAt: null,
+        moderationRemovedAt: null,
+      },
       data: { deletedAt: new Date() },
     });
   }

@@ -1,5 +1,35 @@
 # Database
 
+## Moderation tables and invariants (Phase 9)
+
+`users.role` is the minimal `USER | MODERATOR | ADMIN` authorization source. Existing
+`users.disabledAt` remains the single account-availability switch. Posts, comments, and Stories each
+add nullable `moderationRemovedAt`; author deletion continues to use the pre-existing `deletedAt`.
+
+`reports` and `moderation_cases` both retain an immutable `targetType`/`targetId` and one nullable
+typed foreign key. Insert triggers require exactly one matching reference. The foreign keys use
+`ON DELETE SET NULL` so retention may remove expired/deleted content while the stable target ID and
+bounded snapshot remain. Report evidence contains at most text already bounded by its source model,
+username/owner ID, and at most ten media asset IDs; no binary media is copied.
+
+The partial unique index `moderation_cases_active_target_key` guarantees at most one `OPEN` or
+`IN_REVIEW` case per target. Report creation also holds a transaction-scoped advisory lock on the
+target, so concurrent first reports converge without treating uniqueness errors as normal flow.
+`reports_active_duplicate_key` prevents one reporter from creating the same active
+target/reason report repeatedly; closing a case closes its reports and permits a later historical
+epoch.
+
+`moderation_decisions.caseId` is unique. Resolution locks the case row and atomically applies the
+enforcement state, inserts the decision and audit row, inserts any outbox event, closes reports, and
+closes the case. `moderation_audit_logs` rejects update/delete through a trigger. The only bypass is
+the transaction-local `app.allow_moderation_audit_cleanup=on` setting for explicitly privileged
+retention/seed maintenance; no application API sets it.
+
+Operational indexes serve `(status, createdAt, id)` case pages, reviewer queues,
+`(caseId, createdAt, id)` reports/audit reads, reporter history, and target history. Case-list report
+counts are fetched in the bounded Prisma query; case detail loads its bounded relations without a
+per-case query loop.
+
 ## Messaging tables and invariants (Phase 8)
 
 `conversations` uses canonical `lowerUserId`/`higherUserId` foreign keys. PostgreSQL checks

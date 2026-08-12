@@ -1,5 +1,20 @@
 # Events and asynchronous work
 
+## Phase 9 moderation events
+
+Successful enforcement resolutions add one event to the transactional outbox. `NO_ACTION` has no
+downstream effect and emits no event.
+
+- `CONTENT_MODERATED` v1 uses aggregate type `ModerationCase` and carries only `targetType`
+  (`POST | COMMENT | STORY`), `targetId`, `action: REMOVE_CONTENT`, and `occurredAt`.
+- `ACCOUNT_SUSPENDED` v1 uses aggregate type `ModerationCase` and carries only `targetType: USER`,
+  `targetId`, `action: SUSPEND_ACCOUNT`, and `occurredAt`.
+
+Neither event contains reporter identity, report details, moderator identity, private notes, or
+content bodies. The current worker validates them as durable integration facts; HTTP access policy
+enforces the decision immediately after commit. A future consumer may use the events for generic
+cache invalidation or retention workflows without changing the moderation transaction.
+
 ## Phase 8 message event
 
 Message creation writes a version-1 `MESSAGE_CREATED` event in the same serializable PostgreSQL

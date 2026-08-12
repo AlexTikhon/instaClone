@@ -123,11 +123,14 @@ export class PostsService {
 
   async delete(authorId: string, postId: string): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
-      const rows = await transaction.$queryRaw<{ authorId: string; deletedAt: Date | null }[]>(
-        Prisma.sql`SELECT "authorId", "deletedAt" FROM posts WHERE id = ${postId}::uuid FOR UPDATE`,
+      const rows = await transaction.$queryRaw<
+        { authorId: string; deletedAt: Date | null; moderationRemovedAt: Date | null }[]
+      >(
+        Prisma.sql`SELECT "authorId", "deletedAt", "moderationRemovedAt"
+          FROM posts WHERE id = ${postId}::uuid FOR UPDATE`,
       );
       const post = rows[0];
-      if (!post || post.deletedAt) {
+      if (!post || post.deletedAt || post.moderationRemovedAt) {
         throw new ApiError(HttpStatus.NOT_FOUND, 'POST_NOT_FOUND', 'Post was not found');
       }
       if (post.authorId !== authorId) {

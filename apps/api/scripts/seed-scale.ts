@@ -25,6 +25,30 @@ const run = async () => {
     select: { id: true },
   });
   const previousUserIds = previousUsers.map((user) => user.id);
+  const previousCases = await prisma.moderationCase.findMany({
+    where: {
+      OR: [
+        { userTargetId: { in: previousUserIds } },
+        { postTarget: { is: { authorId: { in: previousUserIds } } } },
+        { reports: { some: { reporterId: { in: previousUserIds } } } },
+      ],
+    },
+    select: { id: true },
+  });
+  const previousCaseIds = previousCases.map((item) => item.id);
+  if (previousCaseIds.length > 0) {
+    await prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`SELECT set_config('app.allow_moderation_audit_cleanup', 'on', true)`;
+      await transaction.moderationAuditLog.deleteMany({
+        where: { caseId: { in: previousCaseIds } },
+      });
+      await transaction.moderationDecision.deleteMany({
+        where: { caseId: { in: previousCaseIds } },
+      });
+      await transaction.report.deleteMany({ where: { caseId: { in: previousCaseIds } } });
+      await transaction.moderationCase.deleteMany({ where: { id: { in: previousCaseIds } } });
+    });
+  }
   await prisma.post.deleteMany({ where: { authorId: { in: previousUserIds } } });
   await prisma.story.deleteMany({ where: { authorId: { in: previousUserIds } } });
   await prisma.mediaAsset.deleteMany({ where: { ownerId: { in: previousUserIds } } });
@@ -33,6 +57,7 @@ const run = async () => {
     data: userIds.map((id, index) => ({
       id,
       email: `scale-${index}@example.invalid`,
+      role: index === 0 ? 'MODERATOR' : 'USER',
       disabledAt: index > 0 && index % 197 === 0 ? new Date('2026-01-01T00:00:00.000Z') : null,
     })),
   });
@@ -182,8 +207,96 @@ const run = async () => {
       ),
     skipDuplicates: true,
   });
+  const openCaseId = uuid(0x5ca1e00a, 1);
+  const closedCaseId = uuid(0x5ca1e00a, 2);
+  await prisma.moderationCase.createMany({
+    data: [
+      {
+        id: openCaseId,
+        targetType: 'POST',
+        targetId: posts[0]!.id,
+        postTargetId: posts[0]!.id,
+        status: 'OPEN',
+      },
+      {
+        id: closedCaseId,
+        targetType: 'POST',
+        targetId: posts[1]!.id,
+        postTargetId: posts[1]!.id,
+        status: 'CLOSED',
+        reviewerId: userIds[0],
+        closedAt: seededAt,
+      },
+    ],
+  });
+  await prisma.report.createMany({
+    data: [
+      {
+        id: uuid(0x5ca1e00b, 1),
+        caseId: openCaseId,
+        reporterId: userIds[2]!,
+        targetType: 'POST',
+        targetId: posts[0]!.id,
+        postTargetId: posts[0]!.id,
+        reason: 'SPAM',
+        snapshotText: posts[0]!.caption,
+        snapshotUsername: 'scale_user_0',
+        snapshotOwnerId: posts[0]!.authorId,
+        snapshotMediaAssetIds: [uuid(0x5ca1e003, 1)],
+      },
+      {
+        id: uuid(0x5ca1e00b, 2),
+        caseId: openCaseId,
+        reporterId: userIds[3]!,
+        targetType: 'POST',
+        targetId: posts[0]!.id,
+        postTargetId: posts[0]!.id,
+        reason: 'SCAM',
+        snapshotText: posts[0]!.caption,
+        snapshotUsername: 'scale_user_0',
+        snapshotOwnerId: posts[0]!.authorId,
+        snapshotMediaAssetIds: [uuid(0x5ca1e003, 1)],
+      },
+      {
+        id: uuid(0x5ca1e00b, 3),
+        caseId: closedCaseId,
+        reporterId: userIds[4]!,
+        targetType: 'POST',
+        targetId: posts[1]!.id,
+        postTargetId: posts[1]!.id,
+        reason: 'OTHER',
+        status: 'CLOSED',
+        snapshotText: posts[1]!.caption,
+        snapshotUsername: 'scale_user_0',
+        snapshotOwnerId: posts[1]!.authorId,
+        snapshotMediaAssetIds: [uuid(0x5ca1e003, 2)],
+        closedAt: seededAt,
+      },
+    ],
+  });
+  await prisma.moderationDecision.create({
+    data: {
+      id: uuid(0x5ca1e00c, 1),
+      caseId: closedCaseId,
+      actorUserId: userIds[0]!,
+      action: 'NO_ACTION',
+      internalNote: 'Deterministic scale-seed decision.',
+      createdAt: seededAt,
+    },
+  });
+  await prisma.moderationAuditLog.create({
+    data: {
+      id: uuid(0x5ca1e00d, 1),
+      caseId: closedCaseId,
+      actorUserId: userIds[0]!,
+      action: 'NO_ACTION',
+      targetType: 'POST',
+      targetId: posts[1]!.id,
+      createdAt: seededAt,
+    },
+  });
   process.stdout.write(
-    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, ${conversations.length} conversations, ${messages.length} messages, 2,000 follows, ${likes.length} likes, and ${comments.length} comments.\n`,
+    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, ${conversations.length} conversations, ${messages.length} messages, 2,000 follows, ${likes.length} likes, ${comments.length} comments, 3 reports, and 2 moderation cases.\n`,
   );
 };
 

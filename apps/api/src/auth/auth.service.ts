@@ -40,6 +40,7 @@ const toAuthenticatedUser = (identity: IdentityRecord): AuthenticatedUser => ({
   id: identity.id,
   email: identity.email,
   emailVerified: identity.emailVerifiedAt !== null,
+  role: identity.role,
   profile: identity.profile,
 });
 

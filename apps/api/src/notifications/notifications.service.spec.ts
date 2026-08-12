@@ -89,7 +89,11 @@ describe('NotificationsService', () => {
         type: 'LIKE',
         postId: crypto.randomUUID(),
         actor: { ...row().actor, disabledAt: new Date() },
-        post: { deletedAt: new Date() },
+        post: {
+          deletedAt: new Date(),
+          moderationRemovedAt: null,
+          author: { disabledAt: null },
+        },
       },
     ]);
     const result = await service.list(recipientId, { limit: 20 });

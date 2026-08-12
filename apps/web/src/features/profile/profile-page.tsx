@@ -10,12 +10,15 @@ import { findProfile, followProfile, unfollowProfile } from '../../entities/user
 import { useAuth } from '../auth/auth-provider';
 import { queryKeys } from '../feed/query-keys';
 import { normalizeSearchQuery, useSearchUsers } from '../search/use-search-users';
+import { ReportDialog } from '../moderation/report-dialog';
+import { useState } from 'react';
 
 export function ProfilePage({ username }: { username: string }) {
   const normalizedUsername = normalizeSearchQuery(username);
   const { user: viewer } = useAuth();
   const router = useRouter();
   const client = useQueryClient();
+  const [showReport, setShowReport] = useState(false);
   const profile = useQuery({
     queryKey: queryKeys.profile(normalizedUsername),
     queryFn: () => findProfile(normalizedUsername),
@@ -109,6 +112,9 @@ export function ProfilePage({ username }: { username: string }) {
                 Messaging is unavailable.
               </span>
             ) : null}
+            <button type="button" className="secondaryButton" onClick={() => setShowReport(true)}>
+              Report
+            </button>
           </div>
         ) : null}
       </header>
@@ -154,6 +160,14 @@ export function ProfilePage({ username }: { username: string }) {
         >
           {posts.isFetchingNextPage ? 'Loading…' : 'Load more'}
         </button>
+      ) : null}
+      {showReport ? (
+        <ReportDialog
+          targetType="USER"
+          targetId={profile.data.userId}
+          targetLabel={`@${profile.data.username}`}
+          onClose={() => setShowReport(false)}
+        />
       ) : null}
     </section>
   );

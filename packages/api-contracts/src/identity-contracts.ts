@@ -11,10 +11,13 @@ export const profileSchema = z.object({
   isPrivate: z.boolean(),
 });
 
+export const userRoleSchema = z.enum(['USER', 'MODERATOR', 'ADMIN']);
+
 export const authenticatedUserSchema = z.object({
   id: z.uuid(),
   email: z.email(),
   emailVerified: z.boolean(),
+  role: userRoleSchema,
   profile: profileSchema,
 });
 
@@ -97,6 +100,7 @@ export const updateProfileInputSchema = z
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 
 export type Profile = z.infer<typeof profileSchema>;
+export type UserRole = z.infer<typeof userRoleSchema>;
 export type AuthenticatedUser = z.infer<typeof authenticatedUserSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 export type CsrfResponse = z.infer<typeof csrfResponseSchema>;

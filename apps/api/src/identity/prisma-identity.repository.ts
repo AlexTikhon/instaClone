@@ -26,6 +26,7 @@ interface SelectedUser {
   email: string;
   emailVerifiedAt: Date | null;
   disabledAt: Date | null;
+  role: 'USER' | 'MODERATOR' | 'ADMIN';
   credential?: { passwordHash: string } | null;
   profile?: IdentityRecord['profile'] | null;
 }
@@ -46,6 +47,7 @@ const toIdentity = (user: SelectedUser | null): IdentityRecord | null => {
     email: user.email,
     emailVerifiedAt: user.emailVerifiedAt,
     disabledAt: user.disabledAt,
+    role: user.role,
     passwordHash: user.credential.passwordHash,
     profile: toProfile(user.profile),
   };
@@ -334,9 +336,20 @@ export class PrismaIdentityRepository implements IdentityRepository {
     };
   }
 
-  async findProfileByUsername(username: string): Promise<IdentityRecord['profile'] | null> {
-    const profile = await this.prisma.profile.findUnique({ where: { username } });
-    return profile ? toProfile(profile) : null;
+  async findProfileByUsername(
+    username: string,
+    viewerId: string,
+  ): Promise<IdentityRecord['profile'] | null> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        disabledAt: null,
+        profile: { is: { username } },
+        outgoingBlocks: { none: { blockedId: viewerId } },
+        incomingBlocks: { none: { blockerId: viewerId } },
+      },
+      select: { profile: true },
+    });
+    return user?.profile ? toProfile(user.profile) : null;
   }
 
   async updateProfile(

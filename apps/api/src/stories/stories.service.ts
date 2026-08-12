@@ -92,6 +92,7 @@ export class StoriesService {
         FROM stories
         WHERE "authorId" = ${authorId}::uuid
           AND "deletedAt" IS NULL
+          AND "moderationRemovedAt" IS NULL
           AND "expiresAt" > CURRENT_TIMESTAMP
       `;
       if (Number(counts[0]?.count ?? 0) >= MAX_ACTIVE_STORIES_PER_AUTHOR) {
@@ -253,6 +254,7 @@ export class StoriesService {
       WHERE id = ${storyId}::uuid
         AND "authorId" = ${authorId}::uuid
         AND "deletedAt" IS NULL
+        AND "moderationRemovedAt" IS NULL
       RETURNING id
     `;
     if (rows.length === 0) this.notFound();
@@ -264,7 +266,10 @@ export class StoriesService {
     query: StoryViewersQuery,
   ): Promise<StoryViewersResponse> {
     const owned = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM stories WHERE id = ${storyId}::uuid AND "authorId" = ${authorId}::uuid
+      SELECT id FROM stories
+      WHERE id = ${storyId}::uuid
+        AND "authorId" = ${authorId}::uuid
+        AND "moderationRemovedAt" IS NULL
     `;
     if (owned.length === 0) this.notFound();
     const cursor = query.cursor ? decodeStoryViewerCursor(query.cursor) : null;

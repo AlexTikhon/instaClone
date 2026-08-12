@@ -12,8 +12,11 @@ import {
 export class ProfilesService {
   constructor(@Inject(IDENTITY_REPOSITORY) private readonly identities: IdentityRepository) {}
 
-  async findPublic(username: string): Promise<Profile> {
-    const profile = await this.identities.findProfileByUsername(username.trim().toLowerCase());
+  async findPublic(viewerId: string, username: string): Promise<Profile> {
+    const profile = await this.identities.findProfileByUsername(
+      username.trim().toLowerCase(),
+      viewerId,
+    );
     if (!profile) throw new NotFoundException('Profile not found');
     return profile;
   }

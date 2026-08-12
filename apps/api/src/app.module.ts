@@ -22,6 +22,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { StoriesModule } from './stories/stories.module';
 import { SearchModule } from './search/search.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { MessagingModule } from './messaging/messaging.module';
     StoriesModule,
     SearchModule,
     MessagingModule,
+    ModerationModule,
     OutboxModule,
     HealthModule,
   ],

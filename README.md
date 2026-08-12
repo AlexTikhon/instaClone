@@ -1,8 +1,9 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 8 adds concurrency-safe one-to-one messaging, sequence-ordered history, durable
-read watermarks, idempotent sends, and reconnect-safe realtime hints to the existing social product.
+monolith. Phase 9 adds relational user/content reports, concurrency-safe moderation cases, explicit
+review decisions, immutable audit history, moderator removal, administrator suspension, and
+privacy-safe enforcement across the existing social product.
 
 ## Prerequisites
 
@@ -40,9 +41,21 @@ complete Compose stack. The browser uploads bytes directly to the signed MinIO U
 proxy file bodies.
 
 Authenticated product routes are `/`, `/search`, `/explore`, `/messages`, `/activity`, and
-`/profile/[username]`. Search activates after two normalized characters and reflects the query in the
-URL. A profile's Message action creates or reuses its canonical one-to-one conversation. Apply all
-committed migrations before using Search or Messaging.
+`/profile/[username]`. Privileged accounts also have `/moderation` and `/moderation/[caseId]`.
+Search activates after two normalized characters and reflects the query in the URL. A profile's
+Message action creates or reuses its canonical one-to-one conversation. Apply all committed
+migrations before using Search, Messaging, or Moderation.
+
+Role assignment is deliberately not a public API. After registering a local account, an operator
+with database access can assign a role explicitly:
+
+```bash
+pnpm --filter @instaclone/api db:assign-role moderator@example.com MODERATOR
+```
+
+Use `ADMIN` only for an account that must exercise the higher-impact suspension action. The scale
+seed marks its first synthetic user as a moderator and creates bounded moderation examples; those
+synthetic users are not login credentials.
 
 ## Validation
 

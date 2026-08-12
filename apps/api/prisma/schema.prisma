@@ -14,6 +14,7 @@ model User {
   createdAt               DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime                 @updatedAt @db.Timestamptz(3)
   disabledAt              DateTime?                @db.Timestamptz(3)
+  role                    UserRole                 @default(USER)
   credential              UserCredential?
   profile                 Profile?
   sessions                AuthSession[]
@@ -38,6 +39,12 @@ model User {
   lowerConversations      Conversation[]           @relation("ConversationLowerUser")
   higherConversations     Conversation[]           @relation("ConversationHigherUser")
   sentMessages            Message[]                @relation("MessageSender")
+  filedReports            Report[]                 @relation("ReportReporter")
+  reportTargets           Report[]                 @relation("ReportUserTarget")
+  moderationCaseTargets   ModerationCase[]         @relation("CaseUserTarget")
+  reviewedModerationCases ModerationCase[]         @relation("CaseReviewer")
+  moderationDecisions     ModerationDecision[]     @relation("DecisionActor")
+  moderationAuditEntries  ModerationAuditLog[]     @relation("ModerationAuditActor")
 
   @@map("users")
 }
@@ -190,12 +197,15 @@ model Post {
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   deletedAt     DateTime?      @db.Timestamptz(3)
+  moderationRemovedAt DateTime? @db.Timestamptz(3)
   author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   media         PostMedia[]
   likes         PostLike[]
   comments      Comment[]
   savedBy       SavedPost[]
   notifications Notification[]
+  reportTargets Report[]        @relation("ReportPostTarget")
+  moderationCaseTargets ModerationCase[] @relation("CasePostTarget")
 
   @@index([authorId, createdAt, id])
   @@index([deletedAt, createdAt, id])
@@ -223,9 +233,12 @@ model Comment {
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   deletedAt     DateTime?      @db.Timestamptz(3)
+  moderationRemovedAt DateTime? @db.Timestamptz(3)
   post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   notifications Notification[]
+  reportTargets Report[]        @relation("ReportCommentTarget")
+  moderationCaseTargets ModerationCase[] @relation("CaseCommentTarget")
 
   @@index([postId, deletedAt, createdAt, id])
   @@index([authorId, createdAt])
@@ -263,9 +276,12 @@ model Story {
   createdAt    DateTime    @default(now()) @db.Timestamptz(3)
   expiresAt    DateTime    @db.Timestamptz(3)
   deletedAt    DateTime?   @db.Timestamptz(3)
+  moderationRemovedAt DateTime? @db.Timestamptz(3)
   author       User        @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   mediaAsset   MediaAsset  @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
   views        StoryView[]
+  reportTargets Report[]        @relation("ReportStoryTarget")
+  moderationCaseTargets ModerationCase[] @relation("CaseStoryTarget")
 
   @@index([authorId, expiresAt, createdAt, id])
   @@index([expiresAt, authorId])
@@ -397,12 +413,149 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model ModerationCase {
+  id              String               @id @default(uuid()) @db.Uuid
+  targetType      ModerationTargetType
+  targetId        String               @db.Uuid
+  userTargetId    String?              @db.Uuid
+  postTargetId    String?              @db.Uuid
+  commentTargetId String?              @db.Uuid
+  storyTargetId   String?              @db.Uuid
+  status          ModerationCaseStatus @default(OPEN)
+  reviewerId      String?              @db.Uuid
+  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
+  closedAt        DateTime?            @db.Timestamptz(3)
+  userTarget      User?                @relation("CaseUserTarget", fields: [userTargetId], references: [id], onDelete: SetNull)
+  postTarget      Post?                @relation("CasePostTarget", fields: [postTargetId], references: [id], onDelete: SetNull)
+  commentTarget   Comment?             @relation("CaseCommentTarget", fields: [commentTargetId], references: [id], onDelete: SetNull)
+  storyTarget     Story?               @relation("CaseStoryTarget", fields: [storyTargetId], references: [id], onDelete: SetNull)
+  reviewer        User?                @relation("CaseReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reports         Report[]
+  decision        ModerationDecision?
+  auditEntries    ModerationAuditLog[]
+
+  @@index([status, createdAt, id])
+  @@index([reviewerId, status, createdAt])
+  @@map("moderation_cases")
+}
+
+model Report {
+  id                       String               @id @default(uuid()) @db.Uuid
+  caseId                   String               @db.Uuid
+  reporterId               String               @db.Uuid
+  targetType               ModerationTargetType
+  targetId                 String               @db.Uuid
+  userTargetId             String?              @db.Uuid
+  postTargetId             String?              @db.Uuid
+  commentTargetId          String?              @db.Uuid
+  storyTargetId            String?              @db.Uuid
+  reason                   ReportReason
+  details                  String?              @db.VarChar(1000)
+  status                   ReportStatus         @default(ACTIVE)
+  snapshotText             String?              @db.VarChar(2200)
+  snapshotUsername         String               @db.VarChar(30)
+  snapshotOwnerId          String               @db.Uuid
+  snapshotMediaAssetIds    Json
+  createdAt                DateTime             @default(now()) @db.Timestamptz(3)
+  closedAt                 DateTime?            @db.Timestamptz(3)
+  moderationCase           ModerationCase       @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  reporter                 User                 @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  userTarget               User?                @relation("ReportUserTarget", fields: [userTargetId], references: [id], onDelete: SetNull)
+  postTarget               Post?                @relation("ReportPostTarget", fields: [postTargetId], references: [id], onDelete: SetNull)
+  commentTarget            Comment?             @relation("ReportCommentTarget", fields: [commentTargetId], references: [id], onDelete: SetNull)
+  storyTarget              Story?               @relation("ReportStoryTarget", fields: [storyTargetId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, createdAt, id])
+  @@index([reporterId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("reports")
+}
+
+model ModerationDecision {
+  id          String                   @id @default(uuid()) @db.Uuid
+  caseId      String                   @unique @db.Uuid
+  actorUserId String                   @db.Uuid
+  action      ModerationDecisionAction
+  internalNote String?                 @db.VarChar(2000)
+  createdAt   DateTime                 @default(now()) @db.Timestamptz(3)
+  moderationCase ModerationCase        @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  actor       User                     @relation("DecisionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorUserId, createdAt])
+  @@map("moderation_decisions")
+}
+
+model ModerationAuditLog {
+  id          String                @id @default(uuid()) @db.Uuid
+  caseId      String                @db.Uuid
+  actorUserId String                @db.Uuid
+  action      ModerationAuditAction
+  targetType  ModerationTargetType
+  targetId    String                @db.Uuid
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  moderationCase ModerationCase     @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  actor       User                  @relation("ModerationAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt, id])
+  @@index([actorUserId, createdAt])
+  @@map("moderation_audit_logs")
+}
+
 enum SessionRevokeReason {
   LOGOUT
   REFRESH_TOKEN_REUSE
   PASSWORD_CHANGE
   SECURITY_EVENT
   ACCOUNT_DISABLED
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum ModerationTargetType {
+  USER
+  POST
+  COMMENT
+  STORY
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_OR_ABUSE
+  SEXUAL_CONTENT
+  VIOLENCE
+  IMPERSONATION
+  SCAM
+  OTHER
+}
+
+enum ReportStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ModerationCaseStatus {
+  OPEN
+  IN_REVIEW
+  CLOSED
+}
+
+enum ModerationDecisionAction {
+  NO_ACTION
+  REMOVE_CONTENT
+  SUSPEND_ACCOUNT
+}
+
+enum ModerationAuditAction {
+  START_REVIEW
+  NO_ACTION
+  REMOVE_CONTENT
+  SUSPEND_ACCOUNT
 }
 
 enum MediaKind {

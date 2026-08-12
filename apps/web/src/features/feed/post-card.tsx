@@ -7,9 +7,13 @@ import type { FeedItem } from '@instaclone/api-contracts';
 
 import { CommentsPanel } from '../comments/comments-panel';
 import { useLikePost, useSavePost } from './use-engagement-mutations';
+import { ReportDialog } from '../moderation/report-dialog';
+import { useAuth } from '../auth/auth-provider';
 
 export function PostCard({ item }: { item: FeedItem }) {
   const [showComments, setShowComments] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const { user } = useAuth();
   const like = useLikePost(item.post.id);
   const save = useSavePost(item.post.id);
   const media = item.post.media[0];
@@ -42,6 +46,11 @@ export function PostCard({ item }: { item: FeedItem }) {
         >
           {item.engagement.viewerHasLiked ? 'Unlike' : 'Like'} · {item.engagement.likeCount}
         </button>
+        {user?.id !== item.post.author.userId ? (
+          <button type="button" className="secondaryButton" onClick={() => setShowReport(true)}>
+            Report
+          </button>
+        ) : null}
         <button
           type="button"
           className="secondaryButton"
@@ -71,6 +80,14 @@ export function PostCard({ item }: { item: FeedItem }) {
         </p>
       ) : null}
       {showComments ? <CommentsPanel postId={item.post.id} /> : null}
+      {showReport ? (
+        <ReportDialog
+          targetType="POST"
+          targetId={item.post.id}
+          targetLabel="post"
+          onClose={() => setShowReport(false)}
+        />
+      ) : null}
     </article>
   );
 }

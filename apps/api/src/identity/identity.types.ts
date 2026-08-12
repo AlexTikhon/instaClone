@@ -1,10 +1,11 @@
-import type { Profile, UpdateProfileInput } from '@instaclone/api-contracts';
+import type { Profile, UpdateProfileInput, UserRole } from '@instaclone/api-contracts';
 
 export interface IdentityRecord {
   id: string;
   email: string;
   emailVerifiedAt: Date | null;
   disabledAt: Date | null;
+  role: UserRole;
   passwordHash: string;
   profile: Profile;
 }

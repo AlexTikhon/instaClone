@@ -7,6 +7,10 @@ import { Pool } from 'pg';
 import {
   DOMAIN_EVENTS_QUEUE,
   COMMENT_CREATED_EVENT,
+  ACCOUNT_SUSPENDED_EVENT,
+  accountSuspendedEventSchema,
+  CONTENT_MODERATED_EVENT,
+  contentModeratedEventSchema,
   FOLLOW_REQUESTED_EVENT,
   MEDIA_UPLOADED_EVENT,
   MESSAGE_CREATED_EVENT,
@@ -93,6 +97,14 @@ const domainEventRouter = new DomainEventRouter(
     [USER_FOLLOWED_EVENT, notificationProjector],
     [FOLLOW_REQUESTED_EVENT, notificationProjector],
     [MESSAGE_CREATED_EVENT, messageCreatedHandler],
+    [
+      CONTENT_MODERATED_EVENT,
+      new ValidatedEventHandler((input) => contentModeratedEventSchema.parse(input)),
+    ],
+    [
+      ACCOUNT_SUSPENDED_EVENT,
+      new ValidatedEventHandler((input) => accountSuspendedEventSchema.parse(input)),
+    ],
   ]),
 );
 const storyRetention = new StoryRetentionJob(database);
@@ -149,6 +161,11 @@ domainWorker.on('completed', (job, result) => {
       postId: job.data.eventName === POST_CREATED_EVENT ? job.data.aggregateId : undefined,
       storyId: job.data.eventName === STORY_CREATED_EVENT ? job.data.aggregateId : undefined,
       messageId: job.data.eventName === MESSAGE_CREATED_EVENT ? job.data.aggregateId : undefined,
+      moderationCaseId:
+        job.data.eventName === CONTENT_MODERATED_EVENT ||
+        job.data.eventName === ACCOUNT_SUSPENDED_EVENT
+          ? job.data.aggregateId
+          : undefined,
       result,
     },
     'domain event completed',

@@ -1,5 +1,26 @@
 # Security
 
+## Moderation controls (Phase 9)
+
+Normal report creation cannot enumerate targets: the server validates the target through the same
+account/post/Story visibility semantics used by product reads and returns one not-found code for
+missing, blocked, private/inaccessible, self-owned, expired, deleted, or moderator-removed targets.
+Strict Zod bodies, bounded details, active-duplicate uniqueness, and a rate-limit bucket constrain
+basic report abuse.
+
+Every case endpoint uses both database-backed authentication and a server-side role guard. Hiding
+the `/moderation` navigation link is convenience only. Mutation routes also require verified email
+and the existing signed double-submit CSRF pair. Moderator notes, report details, reporter IDs, and
+audit history appear only in privileged case detail; logs and outbox payloads contain identifiers
+and action names only.
+
+Resolution row-locks the case, validates the state/action, and commits enforcement, decision, audit,
+outbox, and closure atomically. Database uniqueness prevents a second decision, while the immutable
+audit trigger prevents ordinary tampering. Account suspension sets `disabledAt` and revokes every
+active session in the same transaction; access-token and WebSocket revalidation already re-read
+that state. Public profile lookup now requires authentication and applies disabled-account and
+either-direction block filtering, closing the earlier direct-profile availability gap.
+
 ## Direct messaging controls (Phase 8)
 
 Every conversation and history query predicates on current-session membership; UUID knowledge does

@@ -11,6 +11,7 @@ export class PostAccessPolicy {
   visibleWhere(viewerId: string): Prisma.PostWhereInput {
     return {
       deletedAt: null,
+      moderationRemovedAt: null,
       author: {
         disabledAt: null,
         profile: { isNot: null },
@@ -33,6 +34,7 @@ export class PostAccessPolicy {
   visibleSql(viewerId: string): Prisma.Sql {
     return Prisma.sql`
       p."deletedAt" IS NULL
+      AND p."moderationRemovedAt" IS NULL
       AND u."disabledAt" IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM blocks b
@@ -75,5 +77,17 @@ export class PostAccessPolicy {
     });
     if (!post) throw new ApiError(HttpStatus.NOT_FOUND, 'POST_NOT_FOUND', 'Post was not found');
     return post;
+  }
+
+  async removeByModeration(
+    database: DatabaseClient,
+    postId: string,
+    removedAt: Date,
+  ): Promise<boolean> {
+    const result = await database.post.updateMany({
+      where: { id: postId, deletedAt: null, moderationRemovedAt: null },
+      data: { moderationRemovedAt: removedAt },
+    });
+    return result.count === 1;
   }
 }

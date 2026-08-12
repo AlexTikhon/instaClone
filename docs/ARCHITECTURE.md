@@ -1,5 +1,40 @@
 # Architecture
 
+## Phase 9 moderation and trust/safety foundation
+
+Moderation remains an application module in the modular monolith. It owns reports, case grouping,
+review transitions, decisions, and audit history, while Identity, Posts, Engagement, Stories, and
+Messaging retain their persistence ownership. Typed enforcement operations run in the same
+PostgreSQL transaction as the decision because a closed case must never outlive a failed content or
+account change.
+
+A Report has one of four nullable foreign-key references (User, Post, Comment, or Story), a matching
+immutable target type/ID, and a bounded evidence snapshot. A transaction advisory-locks the
+type/ID, validates target visibility, attaches the report to the active case or creates one, then
+inserts the report. Partial unique indexes independently guarantee one active case per target and
+one active report per reporter/target/reason. References use `ON DELETE SET NULL` so normal retention
+can remove a target without destroying its stable target ID and snapshot.
+
+Cases have the explicit `OPEN -> IN_REVIEW -> CLOSED` state machine; `OPEN -> CLOSED` supports a
+direct decision. A unique decision row and row lock prevent conflicting resolutions. `USER`,
+`MODERATOR`, and `ADMIN` are the complete V1 authorization model. Moderators review and remove
+content; admins additionally suspend accounts. Role assignment is an operator command, never a
+public endpoint.
+
+Moderator removal sets `moderationRemovedAt`, distinct from author `deletedAt`. The shared post and
+Story access predicates enforce that state for direct reads, Feed, profile timelines, Explore,
+comments, Story tray/viewer, and new views. Removed comments are omitted because V1 has no reply
+tree. Suspension reuses `User.disabledAt`, revokes sessions atomically, hides the account/content
+from normal discovery, and relies on every authenticated request's database-backed availability
+check. Existing DM history remains durable for the other participant; suspended users cannot hold a
+usable session or send.
+
+Privileged transitions append an audit row protected from ordinary update/delete by a database
+trigger. A tightly scoped session-local maintenance setting exists only for explicit retention and
+deterministic seed cleanup. Enforcement resolutions also commit a body-free `CONTENT_MODERATED` or
+`ACCOUNT_SUSPENDED` outbox event. Reporter notifications and moderation realtime channels are
+intentionally absent; HTTP visibility is authoritative.
+
 ## Phase 8 direct messaging
 
 Messaging is an application module inside the modular monolith. It owns conversation membership,
@@ -193,7 +228,7 @@ repository directly.
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
 persistence. Current product modules also include Posts, Stories, Media, Engagement, Feed, Search,
-Social Graph, and Notifications. Reels, Messaging, and Moderation remain future phases.
+Social Graph, Notifications, Messaging, and Moderation. Reels remains a future phase.
 
 Social Graph owns directed follows, private-account requests, and blocks behind its own repository
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge

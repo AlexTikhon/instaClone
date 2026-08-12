@@ -5,7 +5,11 @@ import { Prisma } from '../generated/prisma/client';
 @Injectable()
 export class StoryAccessPolicy {
   activeStory(): Prisma.Sql {
-    return Prisma.sql`story."deletedAt" IS NULL AND story."expiresAt" > CURRENT_TIMESTAMP`;
+    return Prisma.sql`
+      story."deletedAt" IS NULL
+      AND story."moderationRemovedAt" IS NULL
+      AND story."expiresAt" > CURRENT_TIMESTAMP
+    `;
   }
 
   visibleAuthor(viewerId: string): Prisma.Sql {
@@ -39,5 +43,17 @@ export class StoryAccessPolicy {
         )
       )
     `;
+  }
+
+  async removeByModeration(
+    transaction: Prisma.TransactionClient,
+    storyId: string,
+    removedAt: Date,
+  ): Promise<boolean> {
+    const result = await transaction.story.updateMany({
+      where: { id: storyId, deletedAt: null, moderationRemovedAt: null },
+      data: { moderationRemovedAt: removedAt },
+    });
+    return result.count === 1;
   }
 }
