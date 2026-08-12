@@ -1,5 +1,26 @@
 # Security
 
+## Direct messaging controls (Phase 8)
+
+Every conversation and history query predicates on current-session membership; UUID knowledge does
+not disclose a foreign conversation. Create/send identities come only from authentication, strict
+contracts reject extra fields, text is bounded to 4,000 characters and checked again by PostgreSQL,
+and message bodies are excluded from outbox payloads, Redis, WebSocket hints, and structured logs.
+
+The Social Graph interaction policy checks both block directions and active profiles while holding a
+canonical transaction-scoped pair lock. Block/unblock use the same lock. Therefore a racing send is
+either committed wholly before the block or rejected after it; subsequent sends cannot cross the
+block. Existing history remains visible and the API exposes a blocked composer state only to an
+existing participant. New-conversation block failures retain the Social Graph's unavailable-target
+behavior.
+
+Database uniqueness, rather than memory, owns client-message replay protection. Exact retries can
+recover their prior result after a network timeout (including after a later block), while key reuse
+with other content or a different conversation is rejected. Send attempts reuse the platform's
+Redis-backed 60/minute request limiter. Read watermarks use `GREATEST` and cannot move backward or
+advance to an inaccessible message. Authenticated WebSockets retain origin validation, HTTP-only
+cookie/session revalidation, and multi-socket fan-out; realtime signals contain no message text.
+
 ## Discovery
 
 Search and Explore require authentication, enforce bounded query/page sizes, and apply a 120 request

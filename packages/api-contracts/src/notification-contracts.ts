@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 export const NOTIFICATION_CREATED_MESSAGE = 'NOTIFICATION_CREATED';
-export const NOTIFICATION_REALTIME_CHANNEL = 'instaclone:notifications:v1';
 
 export const notificationTypeSchema = z.enum(['LIKE', 'COMMENT', 'FOLLOW', 'FOLLOW_REQUEST']);
 
@@ -57,11 +56,6 @@ export const realtimeNotificationMessageSchema = z.strictObject({
   data: realtimeNotificationPayloadSchema,
 });
 
-export const notificationRealtimeEnvelopeSchema = z.strictObject({
-  recipientId: z.uuid(),
-  payload: realtimeNotificationPayloadSchema,
-});
-
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type NotificationActor = z.infer<typeof notificationActorSchema>;
 export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
@@ -76,4 +70,3 @@ export type MarkAllNotificationsReadResponse = z.infer<
 >;
 export type RealtimeNotificationPayload = z.infer<typeof realtimeNotificationPayloadSchema>;
 export type RealtimeNotificationMessage = z.infer<typeof realtimeNotificationMessageSchema>;
-export type NotificationRealtimeEnvelope = z.infer<typeof notificationRealtimeEnvelopeSchema>;

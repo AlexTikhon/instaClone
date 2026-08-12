@@ -6,17 +6,20 @@ import type { ReactNode } from 'react';
 
 import { IdentityPanel } from '../../components/identity-panel';
 import { useAuth } from '../auth/auth-provider';
+import { useApplicationRealtime } from '../realtime/use-application-realtime';
 
 const links = [
   { href: '/', label: 'Home', match: (path: string) => path === '/' },
   { href: '/search', label: 'Search', match: (path: string) => path === '/search' },
   { href: '/explore', label: 'Explore', match: (path: string) => path === '/explore' },
+  { href: '/messages', label: 'Messages', match: (path: string) => path.startsWith('/messages') },
   { href: '/activity', label: 'Notifications', match: (path: string) => path === '/activity' },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  useApplicationRealtime(Boolean(user));
   if (loading) return <div className="identityCard">Restoring session&hellip;</div>;
   if (!user) return <IdentityPanel />;
 

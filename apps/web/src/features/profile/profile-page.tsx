@@ -2,7 +2,9 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
+import { createConversation } from '../../entities/messaging/api';
 import { listPosts } from '../../entities/post/api';
 import { findProfile, followProfile, unfollowProfile } from '../../entities/user/api';
 import { useAuth } from '../auth/auth-provider';
@@ -12,6 +14,7 @@ import { normalizeSearchQuery, useSearchUsers } from '../search/use-search-users
 export function ProfilePage({ username }: { username: string }) {
   const normalizedUsername = normalizeSearchQuery(username);
   const { user: viewer } = useAuth();
+  const router = useRouter();
   const client = useQueryClient();
   const profile = useQuery({
     queryKey: queryKeys.profile(normalizedUsername),
@@ -48,6 +51,10 @@ export function ProfilePage({ username }: { username: string }) {
       ]);
     },
   });
+  const message = useMutation({
+    mutationFn: () => createConversation(profile.data!.userId),
+    onSuccess: (conversation) => router.push(`/messages/${conversation.id}`),
+  });
 
   if (profile.isPending) return <div className="discoveryState">Loading profile&hellip;</div>;
   if (profile.isError) {
@@ -76,21 +83,33 @@ export function ProfilePage({ username }: { username: string }) {
             </a>
           ) : null}
         </div>
-        {viewer?.id !== profile.data.userId && relationship ? (
-          <button
-            type="button"
-            className="secondaryButton"
-            disabled={follow.isPending}
-            onClick={() => follow.mutate()}
-          >
-            {relationship === 'following'
-              ? 'Unfollow'
-              : relationship === 'requested'
-                ? 'Cancel request'
-                : profile.data.isPrivate
-                  ? 'Request to follow'
-                  : 'Follow'}
-          </button>
+        {viewer?.id !== profile.data.userId ? (
+          <div className="profileActions">
+            <button type="button" disabled={message.isPending} onClick={() => message.mutate()}>
+              {message.isPending ? 'Opening…' : 'Message'}
+            </button>
+            {relationship ? (
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={follow.isPending}
+                onClick={() => follow.mutate()}
+              >
+                {relationship === 'following'
+                  ? 'Unfollow'
+                  : relationship === 'requested'
+                    ? 'Cancel request'
+                    : profile.data.isPrivate
+                      ? 'Request to follow'
+                      : 'Follow'}
+              </button>
+            ) : null}
+            {message.isError ? (
+              <span className="formError" role="alert">
+                Messaging is unavailable.
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </header>
       {posts.isPending ? (

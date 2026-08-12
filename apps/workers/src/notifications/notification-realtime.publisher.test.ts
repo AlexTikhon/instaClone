@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { NOTIFICATION_REALTIME_CHANNEL } from '@instaclone/api-contracts';
+import {
+  APPLICATION_REALTIME_CHANNEL,
+  NOTIFICATION_CREATED_MESSAGE,
+} from '@instaclone/api-contracts';
 
 import { NotificationRealtimePublisher } from './notification-realtime.publisher';
 
@@ -24,8 +27,11 @@ describe('NotificationRealtimePublisher', () => {
     };
     await publisher.publish(recipientId, notification);
     expect(redis.publish).toHaveBeenCalledWith(
-      NOTIFICATION_REALTIME_CHANNEL,
-      JSON.stringify({ recipientId, payload: { notification } }),
+      APPLICATION_REALTIME_CHANNEL,
+      JSON.stringify({
+        recipientId,
+        message: { event: NOTIFICATION_CREATED_MESSAGE, data: { notification } },
+      }),
     );
   });
 });

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { queryKeys } from '../feed/query-keys';
+import { messagingKeys } from '../messaging/query-keys';
 import { useNotificationRealtime } from './use-notification-realtime';
 
 class FakeWebSocket {
@@ -50,10 +51,40 @@ describe('useNotificationRealtime', () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     act(() => FakeWebSocket.instances[0]?.emit('open'));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: messagingKeys.all });
     act(() => FakeWebSocket.instances[0]?.emit('close'));
     act(() => {
       vi.advanceTimersByTime(1_000);
     });
     expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
+  it('routes message hints to conversation and history recovery queries', () => {
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    renderHook(() => useNotificationRealtime(), { wrapper });
+    const conversationId = crypto.randomUUID();
+    act(() =>
+      FakeWebSocket.instances[0]?.emit('message', {
+        data: JSON.stringify({
+          event: 'MESSAGE_CREATED',
+          data: {
+            conversationId,
+            messageId: crypto.randomUUID(),
+            senderId: crypto.randomUUID(),
+            sequence: 1,
+            occurredAt: new Date().toISOString(),
+          },
+        }),
+      }),
+    );
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: messagingKeys.conversations() });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: messagingKeys.conversation(conversationId),
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: messagingKeys.messages(conversationId) });
   });
 });

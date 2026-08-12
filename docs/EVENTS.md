@@ -1,5 +1,19 @@
 # Events and asynchronous work
 
+## Phase 8 message event
+
+Message creation writes a version-1 `MESSAGE_CREATED` event in the same serializable PostgreSQL
+transaction as message insertion, sequence allocation, sender read advancement, and conversation
+activity. Its payload is limited to `conversationId`, `messageId`, `senderId`, `recipientId`,
+`sequence`, and `occurredAt`; message text is never an infrastructure payload.
+
+The domain worker validates the event and publishes `MESSAGE_CREATED` realtime hints for both the
+recipient and sender, allowing other sender tabs to recover too. Duplicate BullMQ delivery can
+produce duplicate Pub/Sub hints and is harmless because the browser refetches durable state and
+deduplicates messages by stable IDs. A Redis publish error is logged with identifiers and completes
+the best-effort handler; it does not alter the already durable message. PostgreSQL plus HTTP are the
+recovery path after reconnect.
+
 ## Phase 6 Story event and retention work
 
 Story creation commits `Story` and `STORY_CREATED` OutboxEvent atomically. Version 1 contains only
@@ -59,7 +73,7 @@ truth. Domain events that must survive failures are persisted in `outbox_events`
 PostgreSQL transaction as the aggregate change. A dispatcher publishes committed events later.
 
 The Phase 0 `platform.probe` remains isolated. The `domain-events` queue carries version 1 envelopes
-for `MEDIA_UPLOADED`, `POST_CREATED`, `POST_LIKED`, and `COMMENT_CREATED`.
+for the documented media, post, engagement, social, Story, and message facts.
 
 ## Durable envelope
 

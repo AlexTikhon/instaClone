@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { StoriesModule } from './stories/stories.module';
 import { SearchModule } from './search/search.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SearchModule } from './search/search.module';
     RealtimeModule,
     StoriesModule,
     SearchModule,
+    MessagingModule,
     OutboxModule,
     HealthModule,
   ],

@@ -602,6 +602,236 @@ textarea:focus-visible {
   margin: 8px 0;
 }
 
+.profileActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.messagingLayout {
+  display: grid;
+  min-height: 680px;
+  grid-template-columns: minmax(280px, 36%) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(21, 21, 21, 0.92);
+}
+
+.conversationPane {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+
+.conversationPane > header {
+  padding: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.conversationPane h1 {
+  margin: 4px 0 0;
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.conversationList,
+.messageList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conversationList {
+  overflow-y: auto;
+}
+
+.conversationList a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.conversationList a:hover,
+.conversationList a.active {
+  background: #211b18;
+}
+
+.conversationList a > span:nth-child(2),
+.threadHeader > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.conversationList small,
+.threadHeader small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unreadBadge {
+  display: grid;
+  min-width: 22px;
+  min-height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #130d0b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.threadPane,
+.messageThread {
+  min-width: 0;
+  min-height: 0;
+}
+
+.threadEmpty,
+.messageState {
+  display: grid;
+  min-height: 160px;
+  place-content: center;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.threadEmpty {
+  height: 100%;
+}
+
+.threadEmpty h2 {
+  margin-bottom: 0;
+  color: var(--ink);
+}
+
+.messageThread {
+  display: grid;
+  height: 680px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.threadHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobileBack {
+  display: none;
+  color: var(--ink);
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.messageViewport {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+}
+
+.loadOlder {
+  display: block;
+  margin: 0 auto 20px;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.messageList li {
+  max-width: min(76%, 520px);
+  align-self: flex-start;
+}
+
+.messageList p {
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 16px 16px 16px 4px;
+  background: #2a2927;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.messageList time,
+.messageList small {
+  display: block;
+  margin: 4px 8px 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.messageList .ownMessage {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.messageList .ownMessage p {
+  border-radius: 16px 16px 4px;
+  background: var(--accent);
+  color: #130d0b;
+  text-align: left;
+}
+
+.pendingMessage {
+  opacity: 0.72;
+}
+
+.pendingMessage button {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+}
+
+.messageComposer {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.messageComposer textarea {
+  min-width: 0;
+  max-height: 140px;
+  flex: 1;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #0d0d0d;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 14px;
+}
+
+.composerDisabled {
+  padding: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  text-align: center;
+}
+
 .authenticatedApp .identityCard {
   position: sticky;
   top: 24px;
@@ -905,5 +1135,33 @@ textarea:focus-visible {
 
   .publicProfileHeader button {
     grid-column: 1 / -1;
+  }
+
+  .profileActions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .messagingLayout {
+    display: block;
+    min-height: calc(100vh - 130px);
+  }
+
+  .conversationPane {
+    min-height: calc(100vh - 130px);
+    border-right: 0;
+  }
+
+  .messagingLayout.hasActiveThread .conversationPane,
+  .messagingLayout:not(.hasActiveThread) .threadPane {
+    display: none;
+  }
+
+  .messageThread {
+    height: calc(100vh - 130px);
+  }
+
+  .mobileBack {
+    display: inline-block;
   }
 }

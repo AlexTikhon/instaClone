@@ -15,6 +15,8 @@ const USER_COUNT = 2_000;
 const CONTENT_USER_COUNT = 100;
 const POSTS_PER_USER = 10;
 const STORIES_PER_USER = 30;
+const CONVERSATION_COUNT = 500;
+const MESSAGES_PER_CONVERSATION = 40;
 
 const run = async () => {
   const userIds = Array.from({ length: USER_COUNT }, (_, index) => uuid(0x5ca1e001, index + 1));
@@ -54,6 +56,37 @@ const run = async () => {
   });
 
   const seededAt = new Date();
+  const conversations = Array.from({ length: CONVERSATION_COUNT }, (_, index) => {
+    const lastMessageAt = new Date(seededAt.getTime() - index * 60_000);
+    return {
+      id: uuid(0x5ca1e007, index + 1),
+      lowerUserId: userIds[0]!,
+      higherUserId: userIds[index + 1]!,
+      lastSequence: BigInt(MESSAGES_PER_CONVERSATION),
+      lowerLastReadSequence: BigInt(Math.max(0, MESSAGES_PER_CONVERSATION - (index % 11))),
+      higherLastReadSequence: BigInt(MESSAGES_PER_CONVERSATION),
+      lastMessageAt,
+      createdAt: new Date(lastMessageAt.getTime() - MESSAGES_PER_CONVERSATION * 60_000),
+    };
+  });
+  await prisma.conversation.createMany({ data: conversations });
+  const messages = conversations.flatMap((conversation, conversationIndex) =>
+    Array.from({ length: MESSAGES_PER_CONVERSATION }, (_, messageIndex) => {
+      const sequence = messageIndex + 1;
+      return {
+        id: uuid(0x5ca1e008, conversationIndex * MESSAGES_PER_CONVERSATION + sequence),
+        conversationId: conversation.id,
+        senderId: sequence % 2 === 0 ? conversation.lowerUserId : conversation.higherUserId,
+        sequence: BigInt(sequence),
+        body: `Deterministic message ${sequence} in conversation ${conversationIndex + 1}`,
+        clientMessageId: uuid(0x5ca1e009, conversationIndex * MESSAGES_PER_CONVERSATION + sequence),
+        createdAt: new Date(
+          conversation.lastMessageAt.getTime() - (MESSAGES_PER_CONVERSATION - sequence) * 60_000,
+        ),
+      };
+    }),
+  );
+  await prisma.message.createMany({ data: messages });
   const posts = contentUserIds.flatMap((authorId, userIndex) =>
     Array.from({ length: POSTS_PER_USER }, (_, postIndex) => {
       const value = userIndex * POSTS_PER_USER + postIndex + 1;
@@ -150,7 +183,7 @@ const run = async () => {
     skipDuplicates: true,
   });
   process.stdout.write(
-    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, 2,000 follows, ${likes.length} likes, and ${comments.length} comments.\n`,
+    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, ${conversations.length} conversations, ${messages.length} messages, 2,000 follows, ${likes.length} likes, and ${comments.length} comments.\n`,
   );
 };
 

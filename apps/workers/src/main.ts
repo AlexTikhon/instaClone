@@ -9,6 +9,7 @@ import {
   COMMENT_CREATED_EVENT,
   FOLLOW_REQUESTED_EVENT,
   MEDIA_UPLOADED_EVENT,
+  MESSAGE_CREATED_EVENT,
   POST_CREATED_EVENT,
   POST_LIKED_EVENT,
   STORY_CREATED_EVENT,
@@ -38,6 +39,8 @@ import { NotificationProjectionRepository } from './notifications/notification-p
 import { NotificationProjector } from './notifications/notification-projector';
 import { NotificationRealtimePublisher } from './notifications/notification-realtime.publisher';
 import { StoryRetentionJob } from './stories/story-retention.job';
+import { MessageCreatedHandler } from './messaging/message-created.handler';
+import { MessageRealtimePublisher } from './messaging/message-realtime.publisher';
 
 const environment = parseWorkerEnvironment(process.env);
 const logger = pino({
@@ -73,6 +76,10 @@ const notificationProjector = new NotificationProjector(
   new NotificationRealtimePublisher(realtimeRedis),
   logger,
 );
+const messageCreatedHandler = new MessageCreatedHandler(
+  new MessageRealtimePublisher(realtimeRedis),
+  logger,
+);
 const domainEventRouter = new DomainEventRouter(
   new Map<string, DomainEventHandler>([
     [MEDIA_UPLOADED_EVENT, mediaHandler],
@@ -85,6 +92,7 @@ const domainEventRouter = new DomainEventRouter(
     [COMMENT_CREATED_EVENT, notificationProjector],
     [USER_FOLLOWED_EVENT, notificationProjector],
     [FOLLOW_REQUESTED_EVENT, notificationProjector],
+    [MESSAGE_CREATED_EVENT, messageCreatedHandler],
   ]),
 );
 const storyRetention = new StoryRetentionJob(database);
@@ -140,6 +148,7 @@ domainWorker.on('completed', (job, result) => {
       mediaId: job.data.eventName === MEDIA_UPLOADED_EVENT ? job.data.aggregateId : undefined,
       postId: job.data.eventName === POST_CREATED_EVENT ? job.data.aggregateId : undefined,
       storyId: job.data.eventName === STORY_CREATED_EVENT ? job.data.aggregateId : undefined,
+      messageId: job.data.eventName === MESSAGE_CREATED_EVENT ? job.data.aggregateId : undefined,
       result,
     },
     'domain event completed',

@@ -1,5 +1,52 @@
 # Architecture
 
+## Phase 8 direct messaging
+
+Messaging is an application module inside the modular monolith. It owns conversation membership,
+message order, send idempotency, read watermarks, and membership authorization. Identity/Profile
+remain the source of participant availability, while a narrow Social Graph interaction policy owns
+canonical user-pair locking and either-direction block checks. Messaging does not reach Redis or the
+WebSocket hub directly.
+
+A V1 conversation stores its two participants as canonical `lowerUserId` and `higherUserId` columns
+instead of a general membership table. This deliberately trades future group-chat flexibility for
+strong current invariants: a check enforces distinct sorted IDs, a unique pair index prevents two
+rows for one pair, and both foreign keys prove exactly two real participants. The Message insert
+trigger additionally proves that every sender belongs to the referenced conversation.
+
+Every conversation owns an atomically incremented `BIGINT lastSequence`. Sending holds the same
+transaction-scoped advisory pair lock used by block/unblock, increments the sequence, inserts the
+message, advances the sender's read watermark, updates activity, and inserts `MESSAGE_CREATED` into
+the outbox in one serializable transaction. `UNIQUE(senderId, clientMessageId)` makes exact retries
+return the original message. Reuse against another body or conversation is a conflict. This
+conversation-local sequence is the stable total order for history, unread counts, and reads; wall
+clock time is presentation and conversation-list activity only.
+
+History pages scan `(conversationId, sequence DESC)` and carry an opaque, conversation-bound
+sequence cursor. Conversation-list pages use a database `snapshotAt`. For each member conversation,
+one indexed lateral lookup derives the latest message at that snapshot, then keysets on
+`(activityAt DESC, conversationId DESC)`. Thus a post-snapshot message does not move an unseen row
+out of the remaining snapshot. The list is one SQL statement with batched peer, block, preview, and
+unread fields; history uses one membership query plus one bounded message query.
+
+Read state is one monotonic sequence watermark per participant on the conversation row. PostgreSQL
+`GREATEST` prevents older tabs from moving it backwards, and unread counts use the message index with
+`sequence > watermark AND senderId <> viewerId`. A block in either direction disables new creation
+and sends but does not erase or hide existing conversation history.
+
+The committed message and outbox event are durable truth. The existing worker validates
+`MESSAGE_CREATED` and publishes a body-free hint for recipient and sender sessions to the shared
+Redis realtime channel. Every API instance routes it through the existing multi-socket authenticated
+native WebSocket hub. The browser invalidates the relevant TanStack Query list, detail, and history;
+connect/reconnect invalidates all messaging state. Redis Pub/Sub and WebSockets remain best effort,
+and no acknowledgement/replay protocol is required because HTTP reconstructs PostgreSQL state.
+
+The Next.js `/messages` and `/messages/[conversationId]` routes use one responsive list/thread
+surface. History is fetched backward, rendered chronologically, and preserves scroll offset when
+older pages arrive. Sends retain one browser-generated client message ID through failure/retry;
+server responses merge by server/client ID. Read mutation occurs only while the active thread is at
+the newest rendered incoming message.
+
 ## Phase 7 Search and Explore
 
 Search is a read-oriented application module with a repository port. It interprets and validates

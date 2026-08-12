@@ -4,23 +4,23 @@ import Redis from 'ioredis';
 import { PinoLogger } from 'nestjs-pino';
 
 import {
-  NOTIFICATION_REALTIME_CHANNEL,
-  notificationRealtimeEnvelopeSchema,
+  APPLICATION_REALTIME_CHANNEL,
+  applicationRealtimeEnvelopeSchema,
 } from '@instaclone/api-contracts';
 import type { ApiEnvironment } from '@instaclone/config';
 
-import { NotificationRealtimeHub } from './notification-realtime.hub';
+import { RealtimeHub } from './realtime.hub';
 
 @Injectable()
-export class NotificationRealtimeSubscriber implements OnModuleInit, OnModuleDestroy {
+export class RealtimeSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly subscriber: Redis;
 
   constructor(
     config: ConfigService<ApiEnvironment, true>,
-    private readonly hub: NotificationRealtimeHub,
+    private readonly hub: RealtimeHub,
     private readonly logger: PinoLogger,
   ) {
-    this.logger.setContext(NotificationRealtimeSubscriber.name);
+    this.logger.setContext(RealtimeSubscriber.name);
     this.subscriber = new Redis(config.get('REDIS_URL', { infer: true }), {
       enableOfflineQueue: false,
       lazyConnect: true,
@@ -30,17 +30,17 @@ export class NotificationRealtimeSubscriber implements OnModuleInit, OnModuleDes
 
   onModuleInit(): void {
     this.subscriber.on('message', (channel, message) => {
-      if (channel !== NOTIFICATION_REALTIME_CHANNEL) return;
+      if (channel !== APPLICATION_REALTIME_CHANNEL) return;
       try {
-        const envelope = notificationRealtimeEnvelopeSchema.parse(JSON.parse(message));
-        this.hub.deliver(envelope.recipientId, envelope.payload);
+        const envelope = applicationRealtimeEnvelopeSchema.parse(JSON.parse(message));
+        this.hub.deliver(envelope.recipientId, envelope.message);
       } catch (error) {
-        this.logger.warn({ error }, 'invalid notification realtime envelope ignored');
+        this.logger.warn({ error }, 'invalid realtime envelope ignored');
       }
     });
     this.subscriber.on('ready', () => {
       void this.subscriber
-        .subscribe(NOTIFICATION_REALTIME_CHANNEL)
+        .subscribe(APPLICATION_REALTIME_CHANNEL)
         .catch((error: unknown) => this.logger.warn({ error }, 'realtime subscription failed'));
     });
     this.subscriber.on('error', (error) =>

@@ -35,6 +35,9 @@ model User {
   savedPosts              SavedPost[]
   receivedNotifications   Notification[]           @relation("NotificationRecipient")
   actedNotifications      Notification[]           @relation("NotificationActor")
+  lowerConversations      Conversation[]           @relation("ConversationLowerUser")
+  higherConversations     Conversation[]           @relation("ConversationHigherUser")
+  sentMessages            Message[]                @relation("MessageSender")
 
   @@map("users")
 }
@@ -341,6 +344,43 @@ model Block {
   @@id([blockerId, blockedId])
   @@index([blockedId])
   @@map("blocks")
+}
+
+model Conversation {
+  id                     String    @id @default(uuid()) @db.Uuid
+  lowerUserId            String    @db.Uuid
+  higherUserId           String    @db.Uuid
+  lastSequence           BigInt    @default(0)
+  lowerLastReadSequence  BigInt    @default(0)
+  higherLastReadSequence BigInt    @default(0)
+  lastMessageAt          DateTime? @db.Timestamptz(3)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3)
+  lowerUser              User      @relation("ConversationLowerUser", fields: [lowerUserId], references: [id], onDelete: Cascade)
+  higherUser             User      @relation("ConversationHigherUser", fields: [higherUserId], references: [id], onDelete: Cascade)
+  messages               Message[]
+
+  @@unique([lowerUserId, higherUserId])
+  @@index([lowerUserId, lastMessageAt, id])
+  @@index([higherUserId, lastMessageAt, id])
+  @@map("conversations")
+}
+
+model Message {
+  id              String       @id @default(uuid()) @db.Uuid
+  conversationId  String       @db.Uuid
+  senderId        String       @db.Uuid
+  sequence        BigInt
+  body            String       @db.VarChar(4000)
+  clientMessageId String       @db.Uuid
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, sequence])
+  @@unique([senderId, clientMessageId])
+  @@index([conversationId, sequence])
+  @@map("messages")
 }
 
 model RefreshToken {

@@ -11,21 +11,21 @@ import { ACCESS_COOKIE } from '../auth/auth.constants';
 import { AccessSessionAuthenticator } from '../auth/access-session-authenticator';
 import type { RequestIdentity } from '../auth/authenticated-request';
 import { readCookieHeader } from './cookie-header';
-import { NotificationRealtimeHub } from './notification-realtime.hub';
+import { RealtimeHub } from './realtime.hub';
 
 @WebSocketGateway({ path: '/api/v1/realtime' })
-export class NotificationRealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly allowedOrigins: ReadonlySet<string>;
   private readonly revalidationTimers = new WeakMap<WebSocket, NodeJS.Timeout>();
 
   constructor(
     private readonly authenticator: AccessSessionAuthenticator,
-    private readonly hub: NotificationRealtimeHub,
+    private readonly hub: RealtimeHub,
     config: ConfigService<ApiEnvironment, true>,
     private readonly logger: PinoLogger,
   ) {
     this.allowedOrigins = new Set(config.get('API_CORS_ORIGINS', { infer: true }));
-    this.logger.setContext(NotificationRealtimeGateway.name);
+    this.logger.setContext(RealtimeGateway.name);
   }
 
   async handleConnection(client: WebSocket, request: IncomingMessage): Promise<void> {
@@ -50,9 +50,7 @@ export class NotificationRealtimeGateway implements OnGatewayConnection, OnGatew
       return;
     }
     const connectionCount = this.hub.add(identity.id, client);
-    const timer = setInterval(() => {
-      void this.revalidate(client, token);
-    }, 60_000);
+    const timer = setInterval(() => void this.revalidate(client, token), 60_000);
     timer.unref();
     this.revalidationTimers.set(client, timer);
     this.logger.info({ userId: identity.id, connectionCount }, 'realtime connection established');

@@ -1,5 +1,37 @@
 # Database
 
+## Messaging tables and invariants (Phase 8)
+
+`conversations` uses canonical `lowerUserId`/`higherUserId` foreign keys. PostgreSQL checks
+`lowerUserId < higherUserId`, enforces one unique pair, and constrains `lastSequence` plus both read
+watermarks to nonnegative values with reads no greater than the allocated sequence. This shape makes
+"exactly two distinct participants" structural in V1; no partially populated participant set can
+exist.
+
+`messages` has unique `(conversationId, sequence)` and `(senderId, clientMessageId)` keys, positive
+sequence and nonblank-body checks, and a trigger enforcing sender membership. The principal history
+index is `(conversationId, sequence DESC)`. Participant/activity indexes support each side of the
+conversation list; PostgreSQL can use the unique sequence index for latest-at-snapshot and unread
+range scans.
+
+Sequence allocation uses atomic `Conversation.lastSequence += 1` inside the send transaction, never
+`MAX(sequence) + 1`. A transaction-scoped advisory lock derived from the canonical UUID pair is
+shared by create, send, block, and unblock. This makes those transitions linearizable per pair while
+allowing unrelated pairs to proceed concurrently.
+
+Expected query work is bounded:
+
+- conversation list: one SQL statement, including peer, preview, block, and unread projection;
+- detail: the same summary statement restricted to one ID;
+- history page: one membership lookup and one indexed bounded message query;
+- new send: idempotency lookup, one serializable pair transaction with bounded point/range queries,
+  and no network call;
+- read: one accessible-message lookup, one monotonic update, and one indexed unread count in a
+  transaction.
+
+The scale seed creates 500 conversations and 20,000 deterministic historical messages with varied
+read positions, in addition to existing search/content data.
+
 ## Search and Explore
 
 Migration `20260811210000_search_explore` explicitly enables `pg_trgm`. Deploy roles must be allowed

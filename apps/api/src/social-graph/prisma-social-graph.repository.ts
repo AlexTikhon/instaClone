@@ -14,6 +14,7 @@ import type {
   IncomingFollowRequestPage,
   FollowRequestCursor,
 } from './social-graph.types';
+import { SocialInteractionPolicy } from './social-interaction.policy';
 
 const toProfile = (profile: Profile): Profile => ({
   userId: profile.userId,
@@ -26,7 +27,10 @@ const toProfile = (profile: Profile): Profile => ({
 
 @Injectable()
 export class PrismaSocialGraphRepository implements SocialGraphRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly interactionPolicy: SocialInteractionPolicy,
+  ) {}
 
   follow(actorId: string, targetId: string, correlationId: string): Promise<FollowResult> {
     if (actorId === targetId) return Promise.resolve('self');
@@ -164,6 +168,7 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
   block(actorId: string, targetId: string): Promise<BlockResult> {
     if (actorId === targetId) return Promise.resolve('self');
     return this.runSerializable(async (transaction) => {
+      await this.interactionPolicy.lockPair(transaction, actorId, targetId);
       const target = await transaction.user.findFirst({
         where: { id: targetId, disabledAt: null },
         select: { id: true },
@@ -195,7 +200,10 @@ export class PrismaSocialGraphRepository implements SocialGraphRepository {
   }
 
   async unblock(actorId: string, targetId: string): Promise<void> {
-    await this.prisma.block.deleteMany({ where: { blockerId: actorId, blockedId: targetId } });
+    await this.runSerializable(async (transaction) => {
+      await this.interactionPolicy.lockPair(transaction, actorId, targetId);
+      await transaction.block.deleteMany({ where: { blockerId: actorId, blockedId: targetId } });
+    });
   }
 
   async canViewPosts(viewerId: string, authorId: string): Promise<boolean> {

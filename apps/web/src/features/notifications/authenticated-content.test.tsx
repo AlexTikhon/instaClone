@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AuthenticatedContent } from './authenticated-content';
 
-const hooks = vi.hoisted(() => ({ realtime: vi.fn(), notifications: vi.fn() }));
-vi.mock('./use-notification-realtime', () => ({ useNotificationRealtime: hooks.realtime }));
+const hooks = vi.hoisted(() => ({ notifications: vi.fn() }));
 vi.mock('./use-notifications', () => ({ useNotifications: hooks.notifications }));
 vi.mock('../feed/home-feed', () => ({ HomeFeed: () => <div>Home feed body</div> }));
 vi.mock('./notifications-panel', () => ({
@@ -19,6 +18,5 @@ describe('AuthenticatedContent', () => {
     expect(screen.getByText('Home feed body')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Notifications (3)' }));
     expect(screen.getByText('Notifications body')).toBeInTheDocument();
-    expect(hooks.realtime).toHaveBeenCalled();
   });
 });

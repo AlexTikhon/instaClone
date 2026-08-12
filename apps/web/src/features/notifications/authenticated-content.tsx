@@ -4,13 +4,11 @@ import { useState } from 'react';
 
 import { HomeFeed } from '../feed/home-feed';
 import { NotificationsPanel } from './notifications-panel';
-import { useNotificationRealtime } from './use-notification-realtime';
 import { useNotifications } from './use-notifications';
 
 export function AuthenticatedContent() {
   const [view, setView] = useState<'home' | 'notifications'>('home');
   const notifications = useNotifications();
-  useNotificationRealtime();
   const unreadCount = notifications.data?.pages[0]?.unreadCount ?? 0;
   return (
     <div className="activityColumn">

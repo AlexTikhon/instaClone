@@ -1,8 +1,8 @@
 # InstaClone Engineering Lab
 
 An educational, production-oriented social application built incrementally as a TypeScript modular
-monolith. Phase 7 adds privacy-safe PostgreSQL user search, snapshot-ranked Explore, route-based
-application navigation, and a minimal profile surface to the Stories and realtime foundation.
+monolith. Phase 8 adds concurrency-safe one-to-one messaging, sequence-ordered history, durable
+read watermarks, idempotent sends, and reconnect-safe realtime hints to the existing social product.
 
 ## Prerequisites
 
@@ -39,9 +39,10 @@ The create-post workflow needs the worker process (`pnpm --filter @instaclone/wo
 complete Compose stack. The browser uploads bytes directly to the signed MinIO URL; the API does not
 proxy file bodies.
 
-Authenticated product routes are `/`, `/search`, `/explore`, `/activity`, and
+Authenticated product routes are `/`, `/search`, `/explore`, `/messages`, `/activity`, and
 `/profile/[username]`. Search activates after two normalized characters and reflects the query in the
-URL. Apply the latest migration before using Search; it installs PostgreSQL `pg_trgm` and its indexes.
+URL. A profile's Message action creates or reuses its canonical one-to-one conversation. Apply all
+committed migrations before using Search or Messaging.
 
 ## Validation
 

@@ -1,5 +1,35 @@
 # API
 
+## Messaging (Phase 8)
+
+All reads require the authenticated access cookie. Conversation creation and send additionally
+require verified email and CSRF; read watermark mutation requires CSRF. IDs are UUIDs and all request
+objects are strict.
+
+- `POST /api/v1/conversations` with `{ participantUserId }` creates or returns the canonical 1:1
+  conversation. Self targets return `SELF_CONVERSATION_NOT_ALLOWED`; unavailable/blocked targets are
+  uniformly `USER_NOT_AVAILABLE`.
+- `GET /api/v1/conversations?cursor=&limit=20` returns snapshot-paginated summaries with peer,
+  preview, activity time, unread count, and blocked/composer state.
+- `GET /api/v1/conversations/:conversationId` returns one participant-owned summary.
+- `GET /api/v1/conversations/:conversationId/messages?before=&limit=30` returns newest-first message
+  pages. The opaque cursor is valid only for that conversation.
+- `POST /api/v1/conversations/:conversationId/messages` accepts `{ text, clientMessageId }`. Text is
+  preserved, must contain a non-whitespace character, and is bounded to 4,000 characters. Exact
+  retries return the first message; different use of the same key returns
+  `CLIENT_MESSAGE_ID_REUSED`. The IP-derived Redis bucket permits 60 send attempts per minute.
+- `POST /api/v1/conversations/:conversationId/read` accepts `{ messageId }` and returns the monotonic
+  `lastReadSequence` and remaining `unreadCount`.
+
+Every ID-addressed operation predicates on authenticated membership. Foreign and missing
+conversations both return `CONVERSATION_NOT_FOUND`. New sends to blocked or unavailable peers return
+`MESSAGING_FORBIDDEN`; history remains readable.
+
+Messages contain `id`, `conversationId`, `senderId`, numeric safe-range `sequence`, `text`,
+`clientMessageId`, and `createdAt`. The server realtime message is
+`{ event: "MESSAGE_CREATED", data: { conversationId, messageId, senderId, sequence, occurredAt } }`;
+it intentionally omits text and recipient identity.
+
 ## Search and Explore
 
 Both discovery endpoints require an authenticated access-cookie session. They are bounded to 120

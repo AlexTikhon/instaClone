@@ -2,7 +2,7 @@ import type { IncomingMessage } from 'node:http';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { NotificationRealtimeGateway } from './notification-realtime.gateway';
+import { RealtimeGateway } from './realtime.gateway';
 
 const request = (cookie?: string, origin = 'http://localhost:3000') =>
   ({ headers: { cookie, origin } }) as IncomingMessage;
@@ -34,7 +34,7 @@ const setup = (authenticated = true) => {
   return {
     authenticator,
     hub,
-    gateway: new NotificationRealtimeGateway(
+    gateway: new RealtimeGateway(
       authenticator as never,
       hub as never,
       config as never,
@@ -43,7 +43,7 @@ const setup = (authenticated = true) => {
   };
 };
 
-describe('NotificationRealtimeGateway', () => {
+describe('RealtimeGateway', () => {
   it('rejects an unauthenticated socket without trusting a user query parameter', async () => {
     const { gateway, hub } = setup(false);
     const client = socket();
