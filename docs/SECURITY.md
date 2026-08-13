@@ -196,3 +196,19 @@ MFA, session-management UI, content security policy tuning, adaptive/breached-pa
 broader abuse controls remain outstanding. Malware scanning, abandoned-upload garbage collection,
 signed-URL CDN delivery, EXIF stripping policy beyond the generated thumbnail, video validation and
 transcoding, and production bucket lifecycle rules remain intentionally postponed.
+
+# Phase 10 video security
+
+Video intent bounds constrain upload-size abuse but ffprobe/FFmpeg validation of actual bytes is
+authoritative. The worker accepts no client path, filename, dimensions, duration, or codec claim.
+Executables receive argument arrays with `shell:false`; all temp/output names are server UUIDs.
+Source and derived I/O streams rather than buffering a 150 MiB file. Decode dimensions, duration,
+frame rate, stream count, process runtime, worker concurrency, stderr, and temporary paths are
+bounded, and temp data is removed in `finally`.
+
+HLS URLs do not contain object keys or presigned credentials. Every nested request applies active
+Reel, author availability, profile, block, private-account/follower, and moderation policy before
+streaming. A guessed asset UUID is not a playback capability. Previously opened streams cannot be
+revoked mid-response; later requests fail immediately after deletion, block, suspension, or removal.
+API proxy delivery is a V1 correctness choice, not the final bandwidth architecture; CDN signed
+cookies/tokens and a private origin are the documented production boundary.

@@ -69,10 +69,12 @@ export const waitForReadyMedia = async (
     const media = await getOwnMedia(mediaId);
     if (media.status === 'READY') return media;
     if (media.status === 'FAILED')
-      throw new Error('Image processing failed. Choose another image.');
+      throw new Error(
+        `Media processing failed${media.failureCode ? ` (${media.failureCode})` : ''}.`,
+      );
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  throw new Error('Image processing is taking longer than expected. Please retry.');
+  throw new Error('Media processing is taking longer than expected. Check again later.');
 };
 
 export const directUploadOrigin = (): string => new URL(apiBaseUrl).origin;

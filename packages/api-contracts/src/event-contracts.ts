@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const DOMAIN_EVENTS_QUEUE = 'domain-events';
 export const MEDIA_UPLOADED_EVENT = 'MEDIA_UPLOADED';
+export const VIDEO_UPLOADED_EVENT = 'VIDEO_UPLOADED';
+export const VIDEO_PROCESSING_QUEUE = 'video-processing';
 export const POST_CREATED_EVENT = 'POST_CREATED';
 export const POST_LIKED_EVENT = 'POST_LIKED';
 export const COMMENT_CREATED_EVENT = 'COMMENT_CREATED';
@@ -29,6 +31,13 @@ export const mediaUploadedPayloadSchema = z.strictObject({
 
 export const mediaUploadedEventSchema = eventEnvelopeSchema.extend({
   eventName: z.literal(MEDIA_UPLOADED_EVENT),
+  eventVersion: z.literal(1),
+  aggregateType: z.literal('MediaAsset'),
+  payload: mediaUploadedPayloadSchema,
+});
+
+export const videoUploadedEventSchema = eventEnvelopeSchema.extend({
+  eventName: z.literal(VIDEO_UPLOADED_EVENT),
   eventVersion: z.literal(1),
   aggregateType: z.literal('MediaAsset'),
   payload: mediaUploadedPayloadSchema,
@@ -113,7 +122,7 @@ export const storyCreatedEventSchema = eventEnvelopeSchema.extend({
 });
 
 export const contentModeratedPayloadSchema = z.strictObject({
-  targetType: z.enum(['POST', 'COMMENT', 'STORY']),
+  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'REEL']),
   targetId: z.uuid(),
   action: z.literal('REMOVE_CONTENT'),
   occurredAt: z.iso.datetime(),
@@ -142,6 +151,7 @@ export const accountSuspendedEventSchema = eventEnvelopeSchema.extend({
 
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
 export type MediaUploadedEvent = z.infer<typeof mediaUploadedEventSchema>;
+export type VideoUploadedEvent = z.infer<typeof videoUploadedEventSchema>;
 export type PostCreatedEvent = z.infer<typeof postCreatedEventSchema>;
 export type PostLikedEvent = z.infer<typeof postLikedEventSchema>;
 export type CommentCreatedEvent = z.infer<typeof commentCreatedEventSchema>;

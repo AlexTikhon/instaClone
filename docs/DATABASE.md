@@ -250,3 +250,17 @@ pnpm --filter @instaclone/api db:migrate:deploy
 
 Migration files are reviewed and committed. `migrate dev` is local-only; deployment uses
 `migrate deploy`. The API readiness probe executes a constant `SELECT 1`, not an application query.
+
+# Phase 10 video and Reels
+
+`MediaAsset` retains the existing five-state lifecycle and adds bounded selected video metadata:
+video/audio codec, frame rate, normalized rotation, and processing version. `MediaVariant` records
+the active HLS master, rendition manifests, and poster; segments are not rows. Unique keys prevent
+duplicate logical variants and storage collisions.
+
+`Reel` has one author and a unique MediaAsset FK plus caption, author deletion, and moderation
+removal timestamps. `(createdAt DESC, id DESC)` serves the discovery cursor and the author-prefixed
+variant supports future profile pages. The unique media FK prevents double publication.
+
+ModerationCase and Report add a nullable Reel FK. Their check constraints and insert trigger now
+require exactly one matching User/Post/Comment/Story/Reel reference. Target type/ID remains immutable.

@@ -45,6 +45,7 @@ model User {
   reviewedModerationCases ModerationCase[]         @relation("CaseReviewer")
   moderationDecisions     ModerationDecision[]     @relation("DecisionActor")
   moderationAuditEntries  ModerationAuditLog[]     @relation("ModerationAuditActor")
+  reels                   Reel[]
 
   @@map("users")
 }
@@ -173,6 +174,11 @@ model MediaAsset {
   width                Int?
   height               Int?
   durationMs           Int?
+  videoCodec           String?          @db.VarChar(32)
+  audioCodec           String?          @db.VarChar(32)
+  frameRate            Float?
+  rotationDegrees      Int?
+  processingVersion    Int?
   status               MediaAssetStatus @default(PENDING_UPLOAD)
   failureCode          String?          @db.VarChar(64)
   processingStartedAt  DateTime?        @db.Timestamptz(3)
@@ -183,11 +189,51 @@ model MediaAsset {
   owner                User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   postMedia            PostMedia?
   stories              Story[]
+  reel                  Reel?
+  variants              MediaVariant[]
 
   @@index([ownerId, createdAt])
   @@index([status, updatedAt])
   @@index([status, processingLeaseUntil])
   @@map("media_assets")
+}
+
+model MediaVariant {
+  id                String           @id @default(uuid()) @db.Uuid
+  mediaAssetId      String           @db.Uuid
+  type              MediaVariantType
+  label             String           @db.VarChar(32)
+  processingVersion Int
+  objectKey         String           @unique @db.VarChar(512)
+  mimeType          String           @db.VarChar(128)
+  width             Int?
+  height            Int?
+  bitrateKbps       Int?
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  mediaAsset        MediaAsset       @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaAssetId, processingVersion, type, label])
+  @@index([mediaAssetId, processingVersion])
+  @@map("media_variants")
+}
+
+model Reel {
+  id                  String           @id @default(uuid()) @db.Uuid
+  authorId            String           @db.Uuid
+  mediaAssetId        String           @unique @db.Uuid
+  caption             String           @default("") @db.VarChar(2200)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(3)
+  deletedAt           DateTime?        @db.Timestamptz(3)
+  moderationRemovedAt DateTime?        @db.Timestamptz(3)
+  author              User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  mediaAsset          MediaAsset       @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  reportTargets       Report[]         @relation("ReportReelTarget")
+  moderationCaseTargets ModerationCase[] @relation("CaseReelTarget")
+
+  @@index([createdAt, id])
+  @@index([authorId, createdAt, id])
+  @@map("reels")
 }
 
 model Post {
@@ -421,6 +467,7 @@ model ModerationCase {
   postTargetId    String?              @db.Uuid
   commentTargetId String?              @db.Uuid
   storyTargetId   String?              @db.Uuid
+  reelTargetId    String?              @db.Uuid
   status          ModerationCaseStatus @default(OPEN)
   reviewerId      String?              @db.Uuid
   createdAt       DateTime             @default(now()) @db.Timestamptz(3)
@@ -430,6 +477,7 @@ model ModerationCase {
   postTarget      Post?                @relation("CasePostTarget", fields: [postTargetId], references: [id], onDelete: SetNull)
   commentTarget   Comment?             @relation("CaseCommentTarget", fields: [commentTargetId], references: [id], onDelete: SetNull)
   storyTarget     Story?               @relation("CaseStoryTarget", fields: [storyTargetId], references: [id], onDelete: SetNull)
+  reelTarget      Reel?                @relation("CaseReelTarget", fields: [reelTargetId], references: [id], onDelete: SetNull)
   reviewer        User?                @relation("CaseReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
   reports         Report[]
   decision        ModerationDecision?
@@ -450,6 +498,7 @@ model Report {
   postTargetId             String?              @db.Uuid
   commentTargetId          String?              @db.Uuid
   storyTargetId            String?              @db.Uuid
+  reelTargetId             String?              @db.Uuid
   reason                   ReportReason
   details                  String?              @db.VarChar(1000)
   status                   ReportStatus         @default(ACTIVE)
@@ -465,6 +514,7 @@ model Report {
   postTarget               Post?                @relation("ReportPostTarget", fields: [postTargetId], references: [id], onDelete: SetNull)
   commentTarget            Comment?             @relation("ReportCommentTarget", fields: [commentTargetId], references: [id], onDelete: SetNull)
   storyTarget              Story?               @relation("ReportStoryTarget", fields: [storyTargetId], references: [id], onDelete: SetNull)
+  reelTarget               Reel?                @relation("ReportReelTarget", fields: [reelTargetId], references: [id], onDelete: SetNull)
 
   @@index([caseId, createdAt, id])
   @@index([reporterId, createdAt])
@@ -521,6 +571,7 @@ enum ModerationTargetType {
   POST
   COMMENT
   STORY
+  REEL
 }
 
 enum ReportReason {
@@ -569,6 +620,12 @@ enum MediaAssetStatus {
   PROCESSING
   READY
   FAILED
+}
+
+enum MediaVariantType {
+  HLS_MASTER
+  HLS_RENDITION
+  POSTER
 }
 
 enum NotificationType {

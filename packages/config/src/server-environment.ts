@@ -101,6 +101,15 @@ const workerEnvironmentSchema = sharedRuntimeSchema.extend({
   S3_BUCKET: z.string().min(3),
   S3_FORCE_PATH_STYLE: z.stringbool().default(true),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().max(100).default(4),
+  VIDEO_PROCESSING_CONCURRENCY: z.coerce.number().int().positive().max(4).default(1),
+  VIDEO_PROCESSING_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(60_000)
+    .max(30 * 60_000)
+    .default(10 * 60_000),
+  FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
+  FFPROBE_PATH: z.string().min(1).default('ffprobe'),
 });
 
 export type ApiEnvironment = z.infer<typeof apiEnvironmentSchema>;

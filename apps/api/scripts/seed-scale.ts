@@ -15,6 +15,7 @@ const USER_COUNT = 2_000;
 const CONTENT_USER_COUNT = 100;
 const POSTS_PER_USER = 10;
 const STORIES_PER_USER = 30;
+const REELS_PER_USER = 5;
 const CONVERSATION_COUNT = 500;
 const MESSAGES_PER_CONVERSATION = 40;
 
@@ -51,6 +52,7 @@ const run = async () => {
   }
   await prisma.post.deleteMany({ where: { authorId: { in: previousUserIds } } });
   await prisma.story.deleteMany({ where: { authorId: { in: previousUserIds } } });
+  await prisma.reel.deleteMany({ where: { authorId: { in: previousUserIds } } });
   await prisma.mediaAsset.deleteMany({ where: { ownerId: { in: previousUserIds } } });
   await prisma.user.deleteMany({ where: { id: { in: previousUserIds } } });
   await prisma.user.createMany({
@@ -207,6 +209,77 @@ const run = async () => {
       ),
     skipDuplicates: true,
   });
+  const reels = contentUserIds.flatMap((authorId, userIndex) =>
+    Array.from({ length: REELS_PER_USER }, (_, reelIndex) => {
+      const value = userIndex * REELS_PER_USER + reelIndex + 1;
+      return {
+        id: uuid(0x5ca1e00e, value),
+        authorId,
+        mediaAssetId: uuid(0x5ca1e00f, value),
+        caption: `Deterministic scale Reel ${value}`,
+        createdAt: new Date(seededAt.getTime() - value * 90_000),
+        deletedAt: value % 127 === 0 ? seededAt : null,
+      };
+    }),
+  );
+  await prisma.mediaAsset.createMany({
+    data: reels.map((reel, index) => ({
+      id: reel.mediaAssetId,
+      ownerId: reel.authorId,
+      kind: 'VIDEO' as const,
+      objectKey: `scale/reels/${index + 1}/original`,
+      thumbnailObjectKey: `scale/reels/${index + 1}/video/v1/seed/poster.webp`,
+      declaredMimeType: 'video/mp4',
+      declaredSizeBytes: 512_000,
+      verifiedSizeBytes: 512_000,
+      width: 720,
+      height: 1_280,
+      durationMs: 5_000,
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      frameRate: 30,
+      rotationDegrees: 0,
+      processingVersion: 1,
+      status: 'READY' as const,
+    })),
+  });
+  await prisma.mediaVariant.createMany({
+    data: reels.flatMap((reel, index) => {
+      const prefix = `scale/reels/${index + 1}/video/v1/seed`;
+      return [
+        {
+          mediaAssetId: reel.mediaAssetId,
+          type: 'HLS_MASTER' as const,
+          label: 'master',
+          processingVersion: 1,
+          objectKey: `${prefix}/master.m3u8`,
+          mimeType: 'application/vnd.apple.mpegurl',
+        },
+        {
+          mediaAssetId: reel.mediaAssetId,
+          type: 'HLS_RENDITION' as const,
+          label: '360',
+          processingVersion: 1,
+          objectKey: `${prefix}/360/index.m3u8`,
+          mimeType: 'application/vnd.apple.mpegurl',
+          width: 360,
+          height: 640,
+          bitrateKbps: 700,
+        },
+        {
+          mediaAssetId: reel.mediaAssetId,
+          type: 'POSTER' as const,
+          label: 'poster',
+          processingVersion: 1,
+          objectKey: `${prefix}/poster.webp`,
+          mimeType: 'image/webp',
+          width: 360,
+          height: 640,
+        },
+      ];
+    }),
+  });
+  await prisma.reel.createMany({ data: reels });
   const openCaseId = uuid(0x5ca1e00a, 1);
   const closedCaseId = uuid(0x5ca1e00a, 2);
   await prisma.moderationCase.createMany({
@@ -296,7 +369,7 @@ const run = async () => {
     },
   });
   process.stdout.write(
-    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, ${conversations.length} conversations, ${messages.length} messages, 2,000 follows, ${likes.length} likes, ${comments.length} comments, 3 reports, and 2 moderation cases.\n`,
+    `Seeded ${USER_COUNT} searchable users, ${posts.length} posts, ${stories.length} Stories, ${reels.length} Reels, ${conversations.length} conversations, ${messages.length} messages, 2,000 follows, ${likes.length} likes, ${comments.length} comments, 3 reports, and 2 moderation cases.\n`,
   );
 };
 

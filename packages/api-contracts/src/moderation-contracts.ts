@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const MAX_REPORT_DETAILS_LENGTH = 1_000;
 export const MAX_MODERATOR_NOTE_LENGTH = 2_000;
 
-export const moderationTargetTypeSchema = z.enum(['USER', 'POST', 'COMMENT', 'STORY']);
+export const moderationTargetTypeSchema = z.enum(['USER', 'POST', 'COMMENT', 'STORY', 'REEL']);
 export const reportReasonSchema = z.enum([
   'SPAM',
   'HARASSMENT',

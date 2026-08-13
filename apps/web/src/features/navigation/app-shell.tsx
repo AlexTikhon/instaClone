@@ -12,6 +12,7 @@ const links = [
   { href: '/', label: 'Home', match: (path: string) => path === '/' },
   { href: '/search', label: 'Search', match: (path: string) => path === '/search' },
   { href: '/explore', label: 'Explore', match: (path: string) => path === '/explore' },
+  { href: '/reels', label: 'Reels', match: (path: string) => path === '/reels' },
   { href: '/messages', label: 'Messages', match: (path: string) => path.startsWith('/messages') },
   { href: '/activity', label: 'Notifications', match: (path: string) => path === '/activity' },
 ] as const;

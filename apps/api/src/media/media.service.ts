@@ -6,9 +6,12 @@ import { NoSuchKey, NotFound } from '@aws-sdk/client-s3';
 import {
   MAX_IMAGE_UPLOAD_BYTES,
   MEDIA_UPLOADED_EVENT,
+  MAX_VIDEO_UPLOAD_BYTES,
+  VIDEO_UPLOADED_EVENT,
   type InitializeMediaUploadInput,
   type MediaResponse,
   type UploadInitializationResponse,
+  type VideoPlayback,
 } from '@instaclone/api-contracts';
 
 import type { MediaAsset } from '../generated/prisma/client';
@@ -18,8 +21,9 @@ import { createOutboxEvent } from '../outbox/event-envelope';
 import { ApiError } from '../platform/errors/api-error';
 import {
   IMAGE_UPLOAD_URL_TTL_SECONDS,
-  validateImageUpload,
+  validateMediaUpload,
   validateStoredObject,
+  VIDEO_UPLOAD_URL_TTL_SECONDS,
 } from './media-policy';
 import { originalMediaKey } from './storage-key';
 
@@ -37,9 +41,20 @@ export type PostableMediaAsset = Pick<
   | 'createdAt'
   | 'updatedAt'
   | 'thumbnailObjectKey'
->;
+> &
+  Partial<
+    Pick<MediaAsset, 'videoCodec' | 'audioCodec' | 'frameRate' | 'rotationDegrees' | 'failureCode'>
+  >;
 
 export type StoryMediaAsset = PostableMediaAsset;
+
+export interface PlayableVideoAsset extends MediaAsset {
+  variants: {
+    type: 'HLS_MASTER' | 'HLS_RENDITION' | 'POSTER';
+    label: string;
+    objectKey: string;
+  }[];
+}
 
 @Injectable()
 export class MediaService {
@@ -52,7 +67,7 @@ export class MediaService {
     ownerId: string,
     input: InitializeMediaUploadInput,
   ): Promise<UploadInitializationResponse> {
-    validateImageUpload(input);
+    validateMediaUpload(input);
     const id = randomUUID();
     const objectKey = originalMediaKey(ownerId, id);
     const asset = await this.prisma.mediaAsset.create({
@@ -65,10 +80,12 @@ export class MediaService {
         declaredSizeBytes: input.sizeBytes,
       },
     });
+    const expiresInSeconds =
+      input.kind === 'VIDEO' ? VIDEO_UPLOAD_URL_TTL_SECONDS : IMAGE_UPLOAD_URL_TTL_SECONDS;
     const uploadUrl = await this.storage.createUploadUrl({
       contentType: input.mimeType,
       objectKey,
-      expiresInSeconds: IMAGE_UPLOAD_URL_TTL_SECONDS,
+      expiresInSeconds,
     });
     return {
       media: await this.toResponse(asset),
@@ -76,7 +93,7 @@ export class MediaService {
         url: uploadUrl,
         method: 'PUT',
         headers: { 'content-type': input.mimeType },
-        expiresAt: new Date(Date.now() + IMAGE_UPLOAD_URL_TTL_SECONDS * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
       },
     };
   }
@@ -111,19 +128,25 @@ export class MediaService {
     let verifiedSizeBytes: number;
     try {
       verifiedSizeBytes = validateStoredObject(
-        { mimeType: asset.declaredMimeType, sizeBytes: asset.declaredSizeBytes },
+        {
+          kind: asset.kind,
+          mimeType: asset.declaredMimeType,
+          sizeBytes: asset.declaredSizeBytes,
+        },
         stored,
       );
     } catch {
       throw new ApiError(
         HttpStatus.BAD_REQUEST,
         'MEDIA_UPLOAD_INVALID',
-        `Uploaded image must match the authorized type and be at most ${MAX_IMAGE_UPLOAD_BYTES} bytes`,
+        `Uploaded ${asset.kind === 'VIDEO' ? 'video' : 'image'} must match the authorized type and be at most ${
+          asset.kind === 'VIDEO' ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES
+        } bytes`,
       );
     }
 
     const event = createOutboxEvent({
-      eventName: MEDIA_UPLOADED_EVENT,
+      eventName: asset.kind === 'VIDEO' ? VIDEO_UPLOADED_EVENT : MEDIA_UPLOADED_EVENT,
       aggregateType: 'MediaAsset',
       aggregateId: asset.id,
       correlationId,
@@ -166,6 +189,11 @@ export class MediaService {
         width: true,
         height: true,
         durationMs: true,
+        videoCodec: true,
+        audioCodec: true,
+        frameRate: true,
+        rotationDegrees: true,
+        failureCode: true,
         createdAt: true,
         updatedAt: true,
         thumbnailObjectKey: true,
@@ -185,6 +213,13 @@ export class MediaService {
     }
     if (assets.some((asset) => asset.status !== 'READY')) {
       throw new ApiError(HttpStatus.CONFLICT, 'MEDIA_NOT_READY', 'Media is not ready');
+    }
+    if (assets.some((asset) => asset.kind !== 'IMAGE')) {
+      throw new ApiError(
+        HttpStatus.BAD_REQUEST,
+        'INVALID_POST_MEDIA',
+        'V1 posts accept image media only',
+      );
     }
     if (assets.some((asset) => asset.postMedia !== null)) {
       throw new ApiError(HttpStatus.CONFLICT, 'INVALID_POST_MEDIA', 'Media is already attached');
@@ -219,6 +254,93 @@ export class MediaService {
     return asset;
   }
 
+  async requireOwnedReadyForReel(ownerId: string, mediaId: string): Promise<PlayableVideoAsset> {
+    const asset = await this.prisma.mediaAsset.findUnique({
+      where: { id: mediaId },
+      include: { variants: true },
+    });
+    if (asset?.ownerId !== ownerId) {
+      throw new ApiError(
+        HttpStatus.FORBIDDEN,
+        'REEL_MEDIA_NOT_OWNED',
+        'Reel media is not owned by this account',
+      );
+    }
+    if (asset.kind !== 'VIDEO') {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_REEL_MEDIA', 'Reels require video media');
+    }
+    if (asset.status !== 'READY') {
+      throw new ApiError(HttpStatus.CONFLICT, 'REEL_MEDIA_NOT_READY', 'Reel media is not ready');
+    }
+    if (!this.hasCompleteVideoPresentation(asset)) {
+      throw new ApiError(
+        HttpStatus.CONFLICT,
+        'REEL_MEDIA_NOT_READY',
+        'Video presentation outputs are incomplete',
+      );
+    }
+    return asset;
+  }
+
+  toVideoPlayback(asset: PlayableVideoAsset, reelId: string): VideoPlayback {
+    if (!this.hasCompleteVideoPresentation(asset)) {
+      throw new Error('READY video is missing required presentation outputs');
+    }
+    return {
+      type: 'HLS',
+      url: `/api/v1/reels/${reelId}/playback/master.m3u8`,
+      posterUrl: `/api/v1/reels/${reelId}/poster.webp`,
+      width: asset.width!,
+      height: asset.height!,
+      durationMs: asset.durationMs!,
+    };
+  }
+
+  async getVideoDeliveryObject(
+    mediaId: string,
+    relativePath: string,
+  ): Promise<Awaited<ReturnType<ObjectStorageService['getObjectStream']>>> {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: { id: mediaId, kind: 'VIDEO', status: 'READY' },
+      include: { variants: true },
+    });
+    if (!asset || !this.hasCompleteVideoPresentation(asset)) {
+      throw new ApiError(
+        HttpStatus.NOT_FOUND,
+        'VIDEO_OUTPUT_NOT_FOUND',
+        'Video output was not found',
+      );
+    }
+    let objectKey: string | null = null;
+    if (relativePath === 'master.m3u8') {
+      objectKey =
+        asset.variants.find((variant) => variant.type === 'HLS_MASTER')?.objectKey ?? null;
+    } else if (relativePath === 'poster.webp') {
+      objectKey = asset.variants.find((variant) => variant.type === 'POSTER')?.objectKey ?? null;
+    } else {
+      const match = /^(360|720|1080)\/(index\.m3u8|segment-\d{5}\.ts)$/.exec(relativePath);
+      if (match) {
+        const rendition = asset.variants.find(
+          (variant) => variant.type === 'HLS_RENDITION' && variant.label === match[1],
+        );
+        if (rendition) {
+          objectKey =
+            match[2] === 'index.m3u8'
+              ? rendition.objectKey
+              : `${rendition.objectKey.slice(0, -'index.m3u8'.length)}${match[2]}`;
+        }
+      }
+    }
+    if (!objectKey) {
+      throw new ApiError(
+        HttpStatus.NOT_FOUND,
+        'VIDEO_OUTPUT_NOT_FOUND',
+        'Video output was not found',
+      );
+    }
+    return this.storage.getObjectStream(objectKey);
+  }
+
   toResponse(asset: PostableMediaAsset): Promise<MediaResponse>;
   toResponse(asset: MediaAsset): Promise<MediaResponse>;
   async toResponse(asset: PostableMediaAsset | MediaAsset): Promise<MediaResponse> {
@@ -236,6 +358,17 @@ export class MediaService {
       width: asset.width,
       height: asset.height,
       durationMs: asset.durationMs,
+      videoCodec: asset.videoCodec ?? null,
+      audioCodec: asset.audioCodec ?? null,
+      frameRate: asset.frameRate ?? null,
+      rotationDegrees:
+        asset.rotationDegrees === 0 ||
+        asset.rotationDegrees === 90 ||
+        asset.rotationDegrees === 180 ||
+        asset.rotationDegrees === 270
+          ? asset.rotationDegrees
+          : null,
+      failureCode: asset.failureCode ?? null,
       createdAt: asset.createdAt.toISOString(),
       updatedAt: asset.updatedAt.toISOString(),
       url,
@@ -246,6 +379,19 @@ export class MediaService {
     const asset = await this.prisma.mediaAsset.findFirst({ where: { id: mediaId, ownerId } });
     if (!asset) throw new ApiError(HttpStatus.NOT_FOUND, 'MEDIA_NOT_FOUND', 'Media was not found');
     return asset;
+  }
+
+  private hasCompleteVideoPresentation(asset: PlayableVideoAsset): boolean {
+    return (
+      asset.status === 'READY' &&
+      asset.width !== null &&
+      asset.height !== null &&
+      asset.durationMs !== null &&
+      asset.processingVersion !== null &&
+      asset.variants.some((variant) => variant.type === 'HLS_MASTER') &&
+      asset.variants.some((variant) => variant.type === 'HLS_RENDITION') &&
+      asset.variants.some((variant) => variant.type === 'POSTER')
+    );
   }
 }
 

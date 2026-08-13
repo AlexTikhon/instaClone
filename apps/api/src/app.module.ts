@@ -23,6 +23,7 @@ import { StoriesModule } from './stories/stories.module';
 import { SearchModule } from './search/search.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { ReelsModule } from './reels/reels.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ModerationModule } from './moderation/moderation.module';
     StoriesModule,
     SearchModule,
     MessagingModule,
+    ReelsModule,
     ModerationModule,
     OutboxModule,
     HealthModule,

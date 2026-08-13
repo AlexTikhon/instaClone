@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PostAccessModule } from '../post-access/post-access.module';
 import { StoriesModule } from '../stories/stories.module';
 import { EngagementModule } from '../engagement/engagement.module';
+import { ReelsModule } from '../reels/reels.module';
 import { MODERATION_REPOSITORY } from './moderation.repository';
 import { ModerationAdminController } from './moderation-admin.controller';
 import { ModerationPolicy } from './moderation-policy';
@@ -14,7 +15,14 @@ import { PrismaModerationRepository } from './prisma-moderation.repository';
 import { ReportsController } from './reports.controller';
 
 @Module({
-  imports: [AuthModule, AccountAccessModule, PostAccessModule, StoriesModule, EngagementModule],
+  imports: [
+    AuthModule,
+    AccountAccessModule,
+    PostAccessModule,
+    StoriesModule,
+    EngagementModule,
+    ReelsModule,
+  ],
   controllers: [ReportsController, ModerationAdminController],
   providers: [
     ModerationService,

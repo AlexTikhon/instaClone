@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { Readable } from 'node:stream';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +19,12 @@ export interface PresignedUploadRequest {
 }
 
 export interface StoredObjectMetadata {
+  contentLength: number | null;
+  contentType: string | null;
+}
+
+export interface StoredObjectStream {
+  body: Readable;
   contentLength: number | null;
   contentType: string | null;
 }
@@ -77,5 +84,17 @@ export class ObjectStorageService {
       new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
       { expiresIn: expiresInSeconds },
     );
+  }
+
+  async getObjectStream(objectKey: string): Promise<StoredObjectStream> {
+    const result = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+    );
+    if (!result.Body) throw new Error('Stored media object has no body');
+    return {
+      body: Readable.from(result.Body as AsyncIterable<Uint8Array>),
+      contentLength: result.ContentLength ?? null,
+      contentType: result.ContentType ?? null,
+    };
   }
 }

@@ -18,6 +18,8 @@ import {
   POST_LIKED_EVENT,
   STORY_CREATED_EVENT,
   USER_FOLLOWED_EVENT,
+  VIDEO_PROCESSING_QUEUE,
+  VIDEO_UPLOADED_EVENT,
   postCreatedEventSchema,
   storyCreatedEventSchema,
   type EventEnvelope,
@@ -39,6 +41,7 @@ import {
   ValidatedEventHandler,
 } from './domain-events/domain-event-router';
 import { MediaUploadedJobHandler } from './media/media-uploaded.job';
+import { VideoUploadedJobHandler } from './media/video-uploaded.job';
 import { NotificationProjectionRepository } from './notifications/notification-projection.repository';
 import { NotificationProjector } from './notifications/notification-projector';
 import { NotificationRealtimePublisher } from './notifications/notification-realtime.publisher';
@@ -71,10 +74,14 @@ const s3 = new S3Client({
     secretAccessKey: environment.S3_SECRET_KEY,
   },
 });
-const mediaHandler = new MediaUploadedJobHandler(
-  new MediaProcessingRepository(database),
-  new MediaObjectStorage(s3, environment.S3_BUCKET),
-);
+const mediaRepository = new MediaProcessingRepository(database);
+const mediaStorage = new MediaObjectStorage(s3, environment.S3_BUCKET);
+const mediaHandler = new MediaUploadedJobHandler(mediaRepository, mediaStorage);
+const videoHandler = new VideoUploadedJobHandler(mediaRepository, mediaStorage, {
+  ffmpegPath: environment.FFMPEG_PATH,
+  ffprobePath: environment.FFPROBE_PATH,
+  timeoutMs: environment.VIDEO_PROCESSING_TIMEOUT_MS,
+});
 const notificationProjector = new NotificationProjector(
   new NotificationProjectionRepository(database),
   new NotificationRealtimePublisher(realtimeRedis),
@@ -138,6 +145,20 @@ const domainWorker = new Worker<EventEnvelope, unknown>(
   { concurrency: environment.WORKER_CONCURRENCY, connection: redis },
 );
 
+const videoWorker = new Worker<EventEnvelope, unknown>(
+  VIDEO_PROCESSING_QUEUE,
+  (job: Job<EventEnvelope>) => {
+    if (job.name !== VIDEO_UPLOADED_EVENT) {
+      throw new Error(`Unsupported video job type: ${job.name}`);
+    }
+    const maximumAttempts = job.opts.attempts ?? 1;
+    return videoHandler.handle(job.data, {
+      finalAttempt: job.attemptsMade + 1 >= maximumAttempts,
+    });
+  },
+  { concurrency: environment.VIDEO_PROCESSING_CONCURRENCY, connection: redis },
+);
+
 worker.on('completed', (job) => {
   logger.info(
     { correlationId: job.data.correlationId, jobId: job.id, jobName: job.name },
@@ -183,11 +204,36 @@ domainWorker.on('failed', (job, error) => {
   );
 });
 domainWorker.on('error', (error) => logger.error({ error }, 'domain worker error'));
+videoWorker.on('completed', (job, result) => {
+  logger.info(
+    {
+      correlationId: job.data.correlationId,
+      eventId: job.data.eventId,
+      mediaId: job.data.aggregateId,
+      attempt: job.attemptsMade,
+      result,
+    },
+    'video processing completed',
+  );
+});
+videoWorker.on('failed', (job, error) => {
+  logger.error(
+    {
+      correlationId: job?.data.correlationId,
+      eventId: job?.data.eventId,
+      mediaId: job?.data.aggregateId,
+      attempt: job?.attemptsMade,
+      error,
+    },
+    'video processing failed',
+  );
+});
+videoWorker.on('error', (error) => logger.error({ error }, 'video worker error'));
 
 const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, 'worker shutting down');
   clearInterval(storyRetentionTimer);
-  await Promise.all([worker.close(), domainWorker.close()]);
+  await Promise.all([worker.close(), domainWorker.close(), videoWorker.close()]);
   await database.end();
   await Promise.all([redis.quit(), realtimeRedis.quit()]);
 };
@@ -203,6 +249,10 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 }
 
 logger.info(
-  { concurrency: environment.WORKER_CONCURRENCY, queues: [PLATFORM_QUEUE, DOMAIN_EVENTS_QUEUE] },
+  {
+    concurrency: environment.WORKER_CONCURRENCY,
+    videoProcessingConcurrency: environment.VIDEO_PROCESSING_CONCURRENCY,
+    queues: [PLATFORM_QUEUE, DOMAIN_EVENTS_QUEUE, VIDEO_PROCESSING_QUEUE],
+  },
   'worker started',
 );

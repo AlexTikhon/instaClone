@@ -6,7 +6,7 @@ Successful enforcement resolutions add one event to the transactional outbox. `N
 downstream effect and emits no event.
 
 - `CONTENT_MODERATED` v1 uses aggregate type `ModerationCase` and carries only `targetType`
-  (`POST | COMMENT | STORY`), `targetId`, `action: REMOVE_CONTENT`, and `occurredAt`.
+  (`POST | COMMENT | STORY | REEL`), `targetId`, `action: REMOVE_CONTENT`, and `occurredAt`.
 - `ACCOUNT_SUSPENDED` v1 uses aggregate type `ModerationCase` and carries only `targetType: USER`,
   `targetId`, `action: SUSPEND_ACCOUNT`, and `occurredAt`.
 
@@ -148,3 +148,11 @@ controllers never call notification internals.
 Global ordering is neither promised nor required. Workflows that need ordering define a partition key
 and sequence strategy—for example, a per-conversation sequence for messages. Consumers reject or
 buffer invalid transitions according to their domain policy.
+
+# Phase 10 video events and queue
+
+`VIDEO_UPLOADED` v1 contains only `mediaId` and `ownerId`. It is committed with the UPLOADED state in
+the existing outbox. The publisher routes it to `video-processing` with deterministic
+`video-process-<mediaId>-v1` identity, three
+attempts, and exponential backoff. PostgreSQL claim/lease/finalization is the correctness boundary;
+the job ID is only duplicate suppression. Reel moderation extends `CONTENT_MODERATED` with `REEL`.

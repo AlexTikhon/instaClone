@@ -17,6 +17,7 @@ import { createOutboxEvent } from '../outbox/event-envelope';
 import { ApiError } from '../platform/errors/api-error';
 import { PostAccessPolicy } from '../post-access/post-access-policy';
 import { StoryAccessPolicy } from '../stories/story-access-policy';
+import { ReelAccessPolicy } from '../reels/reel-access-policy';
 import { DuplicateActiveReportError, type ModerationRepository } from './moderation.repository';
 import { ModerationPolicy } from './moderation-policy';
 import type {
@@ -51,6 +52,7 @@ export class PrismaModerationRepository implements ModerationRepository {
     private readonly accountAccess: AccountAccessPolicy,
     private readonly postAccess: PostAccessPolicy,
     private readonly storyAccess: StoryAccessPolicy,
+    private readonly reelAccess: ReelAccessPolicy,
     private readonly commentModeration: CommentModerationPolicy,
     private readonly policy: ModerationPolicy,
   ) {}
@@ -360,6 +362,32 @@ export class PrismaModerationRepository implements ModerationRepository {
       };
     }
 
+    if (command.targetType === 'REEL') {
+      const reel = await transaction.reel.findFirst({
+        where: {
+          id: command.targetId,
+          authorId: { not: command.reporterId },
+          ...this.reelAccess.visibleWhere(command.reporterId),
+        },
+        select: {
+          id: true,
+          authorId: true,
+          caption: true,
+          mediaAssetId: true,
+          author: { select: { profile: { select: { username: true } } } },
+        },
+      });
+      if (!reel?.author.profile) this.reportTargetNotFound();
+      return {
+        targetType: 'REEL',
+        targetId: reel.id,
+        ownerId: reel.authorId,
+        username: reel.author.profile.username,
+        text: reel.caption || null,
+        mediaAssetIds: [reel.mediaAssetId],
+      };
+    }
+
     const stories = await transaction.$queryRaw<
       { id: string; authorId: string; username: string; mediaAssetId: string }[]
     >(Prisma.sql`
@@ -406,6 +434,12 @@ export class PrismaModerationRepository implements ModerationRepository {
       enforced = await this.commentModeration.remove(transaction, moderationCase.targetId, now);
     } else if (moderationCase.targetType === 'STORY') {
       enforced = await this.storyAccess.removeByModeration(
+        transaction,
+        moderationCase.targetId,
+        now,
+      );
+    } else if (moderationCase.targetType === 'REEL') {
+      enforced = await this.reelAccess.removeByModeration(
         transaction,
         moderationCase.targetId,
         now,
@@ -459,6 +493,7 @@ export class PrismaModerationRepository implements ModerationRepository {
       postTargetId: targetType === 'POST' ? targetId : null,
       commentTargetId: targetType === 'COMMENT' ? targetId : null,
       storyTargetId: targetType === 'STORY' ? targetId : null,
+      reelTargetId: targetType === 'REEL' ? targetId : null,
     };
   }
 

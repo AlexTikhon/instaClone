@@ -8,7 +8,7 @@ bucket. Inaccessible, blocked, removed, expired, self-owned, and nonexistent tar
 same `REPORT_TARGET_NOT_FOUND` response.
 
 - `POST /api/v1/reports` accepts `{ targetType, targetId, reason, details? }` for `USER`, `POST`,
-  `COMMENT`, or `STORY`. Details are optional and limited to 1,000 characters. Success exposes only
+  `COMMENT`, `STORY`, or `REEL`. Details are optional and limited to 1,000 characters. Success exposes only
   `{ reportId, status: "RECEIVED" }`; no report-enumeration endpoint exists.
 - `GET /api/v1/moderation/cases` requires `MODERATOR` or `ADMIN`, keyset-paginates by creation time
   and ID, and accepts bounded `status` and `targetType` filters.
@@ -274,3 +274,22 @@ versioned later.
 Relationship-state, follower/following-count, and follower/following-list HTTP read models are
 intentionally postponed. Phase 3 needs only an internal Social Graph visibility decision for post
 reads; adding broader graph APIs now would create unused contracts.
+
+# Phase 10 Reels and video media
+
+- `POST /api/v1/media/uploads` accepts discriminated IMAGE or VIDEO intents. VIDEO is MP4/QuickTime
+  up to 150 MiB. The response is a direct PUT URL; source bytes never pass through NestJS.
+- `POST /api/v1/media/:mediaId/finalize` verifies object metadata and durably schedules processing.
+- `GET /api/v1/media/:mediaId` exposes owned processing state, safe metadata, and a machine failure
+  code. It never treats UPLOADED/PROCESSING video as playable.
+- `POST /api/v1/reels` publishes one owned READY VIDEO with a caption.
+- `GET /api/v1/reels` returns chronological keyset pages of legally visible Reels.
+- `GET /api/v1/reels/:reelId` returns the same storage-opaque HLS playback abstraction.
+- `DELETE /api/v1/reels/:reelId` author-soft-deletes a Reel.
+- `GET /api/v1/reels/:reelId/playback/master.m3u8`,
+  `.../playback/:rendition/:file`, and `.../poster.webp` authorize the viewer and stream the derived
+  object. Arbitrary paths and media UUID lookup are not accepted.
+- `POST /api/v1/reports` now accepts relationally validated `REEL` targets.
+
+All mutation endpoints require the existing authenticated, verified-email, and CSRF boundaries.
+Playback requests require authentication and re-evaluate Reel privacy/block/moderation state.

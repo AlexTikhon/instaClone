@@ -1,4 +1,7 @@
-FROM node:24.11.1-alpine AS builder
+FROM node:24.11.1-alpine AS base
+RUN apk add --no-cache 'ffmpeg>=7'
+
+FROM base AS builder
 WORKDIR /workspace
 RUN corepack enable
 
@@ -12,7 +15,7 @@ COPY . .
 RUN pnpm build:packages && pnpm --filter @instaclone/workers build
 RUN pnpm --filter @instaclone/workers deploy --prod /release
 
-FROM node:24.11.1-alpine AS runtime
+FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder /release ./

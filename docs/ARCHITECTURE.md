@@ -1,5 +1,20 @@
 # Architecture
 
+## Phase 10 Reels and video processing
+
+Reels is an application module owning publication, chronological discovery, privacy-aware reads,
+soft deletion, and moderation state. Media remains the sole owner of source and derived objects.
+VIDEO uses the existing upload state machine and transactional outbox, then a dedicated
+low-concurrency BullMQ queue, PostgreSQL lease, streamed temp-file processing, ffprobe validation,
+one aligned H.264/AAC MPEG-TS HLS ladder, WebP poster, attempt-isolated output keys, and conditional
+atomic READY transition.
+
+The API authorizes and streams every master, rendition, segment, and poster request because a single
+presigned manifest cannot authorize its nested private-bucket objects. The boundary is deliberately
+storage-opaque and can move to a private-origin CDN with signed cookies/tokens later. The Next.js
+client uses native HLS or a thin pinned hls.js adapter and one IntersectionObserver-selected active
+player. Full rationale and scaling criteria are in ADR 0015.
+
 ## Phase 9 moderation and trust/safety foundation
 
 Moderation remains an application module in the modular monolith. It owns reports, case grouping,
@@ -228,7 +243,7 @@ repository directly.
 Auth and Profiles consume a narrow identity repository port implemented by Prisma. Controllers own
 HTTP/cookie behavior, services own credential and session use cases, and the repository owns atomic
 persistence. Current product modules also include Posts, Stories, Media, Engagement, Feed, Search,
-Social Graph, Notifications, Messaging, and Moderation. Reels remains a future phase.
+Social Graph, Notifications, Messaging, Moderation, and Reels with Media-owned video processing.
 
 Social Graph owns directed follows, private-account requests, and blocks behind its own repository
 port. It reads authenticated actors from Auth but does not reach into Auth persistence. Multi-edge
