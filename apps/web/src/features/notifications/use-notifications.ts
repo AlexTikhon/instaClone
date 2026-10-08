@@ -8,7 +8,7 @@ import { queryKeys } from '../feed/query-keys';
 export const useNotifications = () =>
   useInfiniteQuery({
     queryKey: queryKeys.notifications,
-    queryFn: ({ pageParam }) => getNotifications(pageParam),
+    queryFn: ({ pageParam, signal }) => getNotifications(pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,

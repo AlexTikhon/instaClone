@@ -34,10 +34,14 @@ export const setPostSaved = async (postId: string, saved: boolean): Promise<Save
   return saveResponseSchema.parse(await response.json());
 };
 
-export const getComments = async (postId: string, cursor?: string): Promise<CommentsResponse> => {
+export const getComments = async (
+  postId: string,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<CommentsResponse> => {
   const query = new URLSearchParams({ limit: '10' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/posts/${postId}/comments?${query.toString()}`);
+  const response = await apiRequest(`/posts/${postId}/comments?${query.toString()}`, { signal });
   return commentsResponseSchema.parse(await response.json());
 };
 

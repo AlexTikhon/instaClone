@@ -9,7 +9,7 @@ export const reelsQueryKey = ['reels'] as const;
 export const useReels = () =>
   useInfiniteQuery({
     queryKey: reelsQueryKey,
-    queryFn: ({ pageParam }) => getReels(pageParam),
+    queryFn: ({ pageParam, signal }) => getReels(pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });

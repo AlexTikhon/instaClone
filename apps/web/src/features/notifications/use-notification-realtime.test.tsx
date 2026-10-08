@@ -47,7 +47,7 @@ describe('useNotificationRealtime', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    renderHook(() => useNotificationRealtime(), { wrapper });
+    renderHook(() => useNotificationRealtime('20000000-0000-4000-8000-00000000000a'), { wrapper });
     expect(FakeWebSocket.instances).toHaveLength(1);
     act(() => FakeWebSocket.instances[0]?.emit('open'));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications });
@@ -65,7 +65,7 @@ describe('useNotificationRealtime', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    renderHook(() => useNotificationRealtime(), { wrapper });
+    renderHook(() => useNotificationRealtime('20000000-0000-4000-8000-00000000000a'), { wrapper });
     const conversationId = crypto.randomUUID();
     act(() =>
       FakeWebSocket.instances[0]?.emit('message', {

@@ -20,7 +20,7 @@ const links = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
-  useApplicationRealtime(Boolean(user));
+  useApplicationRealtime(user?.id ?? null);
   if (loading) return <div className="identityCard">Restoring session&hellip;</div>;
   if (!user) return <IdentityPanel />;
 

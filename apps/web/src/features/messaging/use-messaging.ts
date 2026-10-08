@@ -17,7 +17,7 @@ import { messagingKeys } from './query-keys';
 export const useConversations = () =>
   useInfiniteQuery({
     queryKey: messagingKeys.conversations(),
-    queryFn: ({ pageParam }) => getConversations(pageParam),
+    queryFn: ({ pageParam, signal }) => getConversations(pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,
@@ -26,14 +26,14 @@ export const useConversations = () =>
 export const useConversation = (conversationId: string | undefined) =>
   useQuery({
     queryKey: messagingKeys.conversation(conversationId ?? 'none'),
-    queryFn: () => getConversation(conversationId!),
+    queryFn: ({ signal }) => getConversation(conversationId!, signal),
     enabled: Boolean(conversationId),
   });
 
 export const useMessages = (conversationId: string | undefined) =>
   useInfiniteQuery({
     queryKey: messagingKeys.messages(conversationId ?? 'none'),
-    queryFn: ({ pageParam }) => getMessages(conversationId!, pageParam),
+    queryFn: ({ pageParam, signal }) => getMessages(conversationId!, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,

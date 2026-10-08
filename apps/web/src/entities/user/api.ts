@@ -8,9 +8,10 @@ import {
 import { getCsrfToken } from '../../lib/identity-api';
 import { apiRequest } from '../../shared/api/http-client';
 
-export const findProfile = async (username: string): Promise<Profile> => {
+export const findProfile = async (username: string, signal?: AbortSignal): Promise<Profile> => {
   const response = await apiRequest(
     `/profiles/${encodeURIComponent(username.trim().toLowerCase())}`,
+    { signal },
   );
   return profileSchema.parse(await response.json());
 };

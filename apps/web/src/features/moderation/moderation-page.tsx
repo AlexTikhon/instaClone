@@ -11,7 +11,7 @@ export function ModerationPage() {
   const privileged = user?.role === 'MODERATOR' || user?.role === 'ADMIN';
   const cases = useInfiniteQuery({
     queryKey: ['moderation', 'cases'],
-    queryFn: ({ pageParam }) => listModerationCases(pageParam),
+    queryFn: ({ pageParam, signal }) => listModerationCases(pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
     enabled: privileged,

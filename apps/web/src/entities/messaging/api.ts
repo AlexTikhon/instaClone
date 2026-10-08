@@ -14,15 +14,21 @@ import {
 import { getCsrfToken } from '../../lib/identity-api';
 import { apiRequest } from '../../shared/api/http-client';
 
-export const getConversations = async (cursor?: string): Promise<ConversationListResponse> => {
+export const getConversations = async (
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ConversationListResponse> => {
   const query = new URLSearchParams({ limit: '20' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/conversations?${query.toString()}`);
+  const response = await apiRequest(`/conversations?${query.toString()}`, { signal });
   return conversationListResponseSchema.parse(await response.json());
 };
 
-export const getConversation = async (conversationId: string): Promise<ConversationSummary> => {
-  const response = await apiRequest(`/conversations/${conversationId}`);
+export const getConversation = async (
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<ConversationSummary> => {
+  const response = await apiRequest(`/conversations/${conversationId}`, { signal });
   return conversationSummarySchema.parse(await response.json());
 };
 
@@ -40,11 +46,13 @@ export const createConversation = async (
 export const getMessages = async (
   conversationId: string,
   before?: string,
+  signal?: AbortSignal,
 ): Promise<MessagesResponse> => {
   const query = new URLSearchParams({ limit: '30' });
   if (before) query.set('before', before);
   const response = await apiRequest(
     `/conversations/${conversationId}/messages?${query.toString()}`,
+    { signal },
   );
   return messagesResponseSchema.parse(await response.json());
 };

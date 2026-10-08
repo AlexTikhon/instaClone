@@ -21,7 +21,7 @@ export function ModerationCasePage({ caseId }: { caseId: string }) {
   const queryKey = ['moderation', 'case', caseId] as const;
   const moderationCase = useQuery({
     queryKey,
-    queryFn: () => findModerationCase(caseId),
+    queryFn: ({ signal }) => findModerationCase(caseId, signal),
     enabled: privileged,
   });
   const refresh = async () => {

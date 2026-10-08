@@ -8,7 +8,7 @@ import { queryKeys } from './query-keys';
 export const useFeed = () =>
   useInfiniteQuery({
     queryKey: queryKeys.feed,
-    queryFn: ({ pageParam }) => getFeed(pageParam),
+    queryFn: ({ pageParam, signal }) => getFeed(pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined,

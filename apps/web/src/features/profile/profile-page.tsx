@@ -21,7 +21,7 @@ export function ProfilePage({ username }: { username: string }) {
   const [showReport, setShowReport] = useState(false);
   const profile = useQuery({
     queryKey: queryKeys.profile(normalizedUsername),
-    queryFn: () => findProfile(normalizedUsername),
+    queryFn: ({ signal }) => findProfile(normalizedUsername, signal),
   });
   const relationshipQuery = useSearchUsers(normalizedUsername);
   const relationship = relationshipQuery.data?.pages

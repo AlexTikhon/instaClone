@@ -2,9 +2,9 @@ import { feedResponseSchema, type FeedResponse } from '@instaclone/api-contracts
 
 import { apiRequest } from '../../shared/api/http-client';
 
-export const getFeed = async (cursor?: string): Promise<FeedResponse> => {
+export const getFeed = async (cursor?: string, signal?: AbortSignal): Promise<FeedResponse> => {
   const query = new URLSearchParams({ limit: '10' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/feed?${query.toString()}`);
+  const response = await apiRequest(`/feed?${query.toString()}`, { signal });
   return feedResponseSchema.parse(await response.json());
 };
