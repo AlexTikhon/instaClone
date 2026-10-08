@@ -14,9 +14,7 @@ const createQueryClient = () =>
   });
 
 interface QuerySession {
-  /** Authenticated user id, or null while anonymous. Profile edits never change it. */
-  viewerId: string | null;
-  /** Distinguishes consecutive sessions, e.g. logging out and back in as the same user. */
+  /** The authentication generation this client belongs to. Profile edits never change it. */
   generation: number;
   client: QueryClient;
 }
@@ -28,25 +26,24 @@ const disposeQueryClient = (client: QueryClient) => {
 };
 
 /**
- * Owns one QueryClient per authentication session. When the authenticated user changes
- * (logout, login, account replacement) the previous client is replaced during render, so
- * the next account's content never reads the previous account's cache. Components under the
+ * Owns one QueryClient per authentication session, identified by the authentication generation
+ * rather than the user id: logging out and back in as the same account, even when both
+ * transitions land in one render, is a new session with a fresh client. The previous client is
+ * replaced during render, so the next session never reads its cache. Components under the
  * provider are remounted by `key`, because TanStack observers stay bound to the client they
  * were created with. Late responses and mutation callbacks from the old session settle on
  * the old, unreferenced client and cannot reach the new one.
  */
 export function QueryProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const viewerId = user?.id ?? null;
+  const { generation } = useAuth();
   const [stored, setStored] = useState<QuerySession>(() => ({
-    viewerId,
-    generation: 0,
+    generation,
     client: createQueryClient(),
   }));
 
   let session = stored;
-  if (stored.viewerId !== viewerId) {
-    session = { viewerId, generation: stored.generation + 1, client: createQueryClient() };
+  if (stored.generation !== generation) {
+    session = { generation, client: createQueryClient() };
     setStored(session);
   }
 

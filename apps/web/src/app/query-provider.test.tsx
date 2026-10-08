@@ -198,9 +198,9 @@ describe('QueryProvider authentication sessions', () => {
     api.getFeed.mockReturnValue(bFeed.promise);
     renders = [];
 
-    act(() => handles.auth.setUser(null));
+    act(() => handles.auth.completeSignOut(handles.auth.generation));
     expect(document.body).not.toHaveTextContent('-A');
-    act(() => handles.auth.setUser(userB));
+    act(() => handles.auth.completeSignIn(userB, handles.auth.generation));
     expect(document.body).not.toHaveTextContent('-A');
     expect(handles.client).not.toBe(clientOfA);
 
@@ -223,7 +223,7 @@ describe('QueryProvider authentication sessions', () => {
     const clientOfA = handles.client;
 
     privateData('B');
-    act(() => handles.auth.setUser(userB));
+    act(() => handles.auth.completeSignIn(userB, handles.auth.generation));
     await waitFor(() => expect(screen.getByTestId('feed')).toHaveTextContent('feed-B'));
     expect(aSignal?.aborted).toBe(true);
 
@@ -255,7 +255,7 @@ describe('QueryProvider authentication sessions', () => {
     await waitFor(() => expect(api.setPostLiked).toHaveBeenCalledOnce());
 
     api.getFeed.mockResolvedValue(feedPage('feed-B', 5));
-    act(() => handles.auth.setUser(userB));
+    act(() => handles.auth.completeSignIn(userB, handles.auth.generation));
     await waitFor(() => expect(screen.getByTestId('feed')).toHaveTextContent('feed-B'));
     const clientOfB = handles.client;
     expect(likeCountOf(clientOfB)).toBe(5);
@@ -273,10 +273,10 @@ describe('QueryProvider authentication sessions', () => {
     renders = [];
 
     act(() =>
-      handles.auth.setUser({
-        ...userA,
-        profile: { ...userA.profile, displayName: 'Alice Updated' },
-      }),
+      handles.auth.completeProfileUpdate(
+        { ...userA.profile, displayName: 'Alice Updated' },
+        handles.auth.generation,
+      ),
     );
 
     expect(handles.client).toBe(client);
@@ -290,8 +290,8 @@ describe('QueryProvider authentication sessions', () => {
     renderApp();
     await waitFor(() => expect(screen.getByTestId('feed')).toHaveTextContent('feed-A'));
     const first = handles.client;
-    act(() => handles.auth.setUser(null));
-    act(() => handles.auth.setUser(userA));
+    act(() => handles.auth.completeSignOut(handles.auth.generation));
+    act(() => handles.auth.completeSignIn(userA, handles.auth.generation));
     await waitFor(() => expect(screen.getByTestId('feed')).toHaveTextContent('feed-A'));
     expect(handles.client).not.toBe(first);
     expect(api.getFeed).toHaveBeenCalledTimes(2);
@@ -303,17 +303,17 @@ describe('QueryProvider authentication sessions', () => {
     const client = handles.client;
     const fetches = api.getFeed.mock.calls.length;
     act(() =>
-      handles.auth.setUser({
-        ...userA,
-        profile: { ...userA.profile, displayName: 'Alice Updated' },
-      }),
+      handles.auth.completeProfileUpdate(
+        { ...userA.profile, displayName: 'Alice Updated' },
+        handles.auth.generation,
+      ),
     );
     expect(handles.client).toBe(client);
     expect(screen.getByTestId('feed')).toHaveTextContent('feed-A');
     expect(api.getFeed).toHaveBeenCalledTimes(fetches);
 
     privateData('B');
-    act(() => handles.auth.setUser(userB));
+    act(() => handles.auth.completeSignIn(userB, handles.auth.generation));
     await waitFor(() => expect(screen.getByTestId('feed')).toHaveTextContent('feed-B'));
     expect(client.getQueryCache().getAll()).toHaveLength(0);
   });

@@ -150,7 +150,7 @@ describe('AppShell session lifecycle', () => {
     expect(document.body).not.toHaveTextContent('a-notification');
 
     api.getNotifications.mockResolvedValue({ ...page('b-notification'), unreadCount: 0 });
-    act(() => handles.auth.setUser(userB));
+    act(() => handles.auth.completeSignIn(userB, handles.auth.generation));
     await waitFor(() => expect(screen.getByTestId('items')).toHaveTextContent('b-notification'));
     const clientOfB = handles.client;
     expect(FakeWebSocket.instances).toHaveLength(2);

@@ -18,13 +18,16 @@ const formString = (data: FormData, name: string): string => {
 };
 
 export function IdentityPanel() {
-  const { user, loading, setUser } = useAuth();
+  const { user, loading, generation, completeSignIn, completeSignOut, completeProfileUpdate } =
+    useAuth();
   const [mode, setMode] = useState<Mode>('register');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Results only apply to the session this operation started in (see AuthProvider).
+    const startedIn = generation;
     setPending(true);
     setError(null);
     const data = new FormData(event.currentTarget);
@@ -45,7 +48,7 @@ export function IdentityPanel() {
               { email: formString(data, 'email'), password: formString(data, 'password') },
               csrfToken,
             );
-      setUser(current);
+      completeSignIn(current, startedIn);
     } catch (submissionError) {
       setError(messageOf(submissionError));
     } finally {
@@ -56,6 +59,7 @@ export function IdentityPanel() {
   const submitProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
+    const startedIn = generation;
     setPending(true);
     setError(null);
     const data = new FormData(event.currentTarget);
@@ -70,7 +74,7 @@ export function IdentityPanel() {
         },
         csrfToken,
       );
-      setUser({ ...user, profile });
+      completeProfileUpdate(profile, startedIn);
     } catch (submissionError) {
       setError(messageOf(submissionError));
     } finally {
@@ -79,11 +83,12 @@ export function IdentityPanel() {
   };
 
   const endSession = async () => {
+    const startedIn = generation;
     setPending(true);
     setError(null);
     try {
       await logout(await getCsrfToken());
-      setUser(null);
+      completeSignOut(startedIn);
     } catch (logoutError) {
       setError(messageOf(logoutError));
     } finally {
