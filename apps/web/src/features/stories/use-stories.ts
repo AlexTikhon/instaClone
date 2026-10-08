@@ -22,12 +22,12 @@ import { getCsrfToken } from '../../lib/identity-api';
 import { queryKeys } from '../feed/query-keys';
 
 export const storyTrayQueryOptions = () =>
-  queryOptions({ queryKey: queryKeys.stories, queryFn: getStoryTray });
+  queryOptions({ queryKey: queryKeys.stories, queryFn: ({ signal }) => getStoryTray(signal) });
 
 export const storySequenceQueryOptions = (authorId: string) =>
   queryOptions({
     queryKey: queryKeys.storySequence(authorId),
-    queryFn: () => getStorySequence(authorId),
+    queryFn: ({ signal }) => getStorySequence(authorId, signal),
   });
 
 export const useStoryTray = () => useQuery(storyTrayQueryOptions());
@@ -91,7 +91,7 @@ export const useDeleteStory = () => {
 export const storyViewersQueryOptions = (storyId: string) =>
   infiniteQueryOptions({
     queryKey: queryKeys.storyViewers(storyId),
-    queryFn: ({ pageParam }) => getStoryViewers(storyId, pageParam),
+    queryFn: ({ pageParam, signal }) => getStoryViewers(storyId, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
   });

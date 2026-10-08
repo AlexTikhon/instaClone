@@ -20,9 +20,9 @@ export const createReel = async (
   return reelResponseSchema.parse(await response.json());
 };
 
-export const getReels = async (cursor?: string): Promise<ReelsResponse> => {
+export const getReels = async (cursor?: string, signal?: AbortSignal): Promise<ReelsResponse> => {
   const query = new URLSearchParams({ limit: '10' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/reels?${query.toString()}`);
+  const response = await apiRequest(`/reels?${query.toString()}`, { signal });
   return reelsResponseSchema.parse(await response.json());
 };

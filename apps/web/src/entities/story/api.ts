@@ -26,13 +26,16 @@ export const createStory = async (
   return storyResponseSchema.parse(await response.json());
 };
 
-export const getStoryTray = async (): Promise<StoryTrayResponse> => {
-  const response = await apiRequest('/stories');
+export const getStoryTray = async (signal?: AbortSignal): Promise<StoryTrayResponse> => {
+  const response = await apiRequest('/stories', { signal });
   return storyTrayResponseSchema.parse(await response.json());
 };
 
-export const getStorySequence = async (authorId: string): Promise<StorySequenceResponse> => {
-  const response = await apiRequest(`/stories/users/${authorId}`);
+export const getStorySequence = async (
+  authorId: string,
+  signal?: AbortSignal,
+): Promise<StorySequenceResponse> => {
+  const response = await apiRequest(`/stories/users/${authorId}`, { signal });
   return storySequenceResponseSchema.parse(await response.json());
 };
 
@@ -57,9 +60,10 @@ export const deleteStory = async (storyId: string, csrfToken: string): Promise<v
 export const getStoryViewers = async (
   storyId: string,
   cursor?: string,
+  signal?: AbortSignal,
 ): Promise<StoryViewersResponse> => {
   const query = new URLSearchParams({ limit: '25' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/stories/${storyId}/viewers?${query.toString()}`);
+  const response = await apiRequest(`/stories/${storyId}/viewers?${query.toString()}`, { signal });
   return storyViewersResponseSchema.parse(await response.json());
 };

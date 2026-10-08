@@ -10,10 +10,13 @@ import {
 import { getCsrfToken } from '../../lib/identity-api';
 import { apiRequest } from '../../shared/api/http-client';
 
-export const getNotifications = async (cursor?: string): Promise<NotificationsResponse> => {
+export const getNotifications = async (
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<NotificationsResponse> => {
   const query = new URLSearchParams({ limit: '20' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/notifications?${query.toString()}`);
+  const response = await apiRequest(`/notifications?${query.toString()}`, { signal });
   return notificationsResponseSchema.parse(await response.json());
 };
 

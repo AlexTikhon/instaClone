@@ -11,7 +11,7 @@ export function CommentsPanel({ postId }: { postId: string }) {
   const [error, setError] = useState<string | null>(null);
   const comments = useInfiniteQuery({
     queryKey: queryKeys.comments(postId),
-    queryFn: ({ pageParam }) => getComments(postId, pageParam),
+    queryFn: ({ pageParam, signal }) => getComments(postId, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
   });

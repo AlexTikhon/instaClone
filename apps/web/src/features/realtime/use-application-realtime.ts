@@ -27,10 +27,16 @@ export const applicationRealtimeUrl = (): string => {
   return url.toString();
 };
 
-export const useApplicationRealtime = (enabled = true): void => {
+/**
+ * Keeps one realtime socket for the authenticated session identified by `viewerId`.
+ * A different (or null) viewer tears the previous socket down completely: the socket is
+ * closed, its reconnect timer is cancelled, and any callback that still fires afterwards
+ * (browsers deliver `close` asynchronously) is ignored.
+ */
+export const useApplicationRealtime = (viewerId: string | null): void => {
   const client = useQueryClient();
   useEffect(() => {
-    if (!enabled) return;
+    if (viewerId === null) return;
     let stopped = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
@@ -44,17 +50,21 @@ export const useApplicationRealtime = (enabled = true): void => {
 
     const connect = () => {
       if (stopped) return;
-      socket = new WebSocket(applicationRealtimeUrl());
-      socket.addEventListener('open', () => {
+      reconnectTimer = null;
+      const current = new WebSocket(applicationRealtimeUrl());
+      socket = current;
+      current.addEventListener('open', () => {
+        if (stopped) return;
         attempt = 0;
         void recover();
       });
-      socket.addEventListener('message', (event) => {
+      current.addEventListener('message', (event) => {
+        if (stopped) return;
         try {
           const parsed = applicationRealtimeMessageSchema.parse(JSON.parse(String(event.data)));
           if (parsed.event === NOTIFICATION_CREATED_MESSAGE) {
-            client.setQueryData<NotificationsCache>(queryKeys.notifications, (current) =>
-              mergeRealtimeNotification(current, parsed.data.notification),
+            client.setQueryData<NotificationsCache>(queryKeys.notifications, (existing) =>
+              mergeRealtimeNotification(existing, parsed.data.notification),
             );
             return;
           }
@@ -73,7 +83,7 @@ export const useApplicationRealtime = (enabled = true): void => {
           // Invalid hints are ignored. Authenticated HTTP recovery remains authoritative.
         }
       });
-      socket.addEventListener('close', () => {
+      current.addEventListener('close', () => {
         if (stopped) return;
         const delay = Math.min(30_000, 1_000 * 2 ** attempt);
         attempt += 1;
@@ -85,7 +95,8 @@ export const useApplicationRealtime = (enabled = true): void => {
     return () => {
       stopped = true;
       if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
       socket?.close();
     };
-  }, [client, enabled]);
+  }, [client, viewerId]);
 };

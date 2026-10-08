@@ -21,15 +21,21 @@ export const createReport = async (input: CreateReportInput): Promise<CreateRepo
   return createReportResponseSchema.parse(await response.json());
 };
 
-export const listModerationCases = async (cursor?: string): Promise<ModerationCasesResponse> => {
+export const listModerationCases = async (
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ModerationCasesResponse> => {
   const query = new URLSearchParams({ limit: '20' });
   if (cursor) query.set('cursor', cursor);
-  const response = await apiRequest(`/moderation/cases?${query.toString()}`);
+  const response = await apiRequest(`/moderation/cases?${query.toString()}`, { signal });
   return moderationCasesResponseSchema.parse(await response.json());
 };
 
-export const findModerationCase = async (caseId: string): Promise<ModerationCaseDetail> => {
-  const response = await apiRequest(`/moderation/cases/${caseId}`);
+export const findModerationCase = async (
+  caseId: string,
+  signal?: AbortSignal,
+): Promise<ModerationCaseDetail> => {
+  const response = await apiRequest(`/moderation/cases/${caseId}`, { signal });
   return moderationCaseDetailSchema.parse(await response.json());
 };
 
